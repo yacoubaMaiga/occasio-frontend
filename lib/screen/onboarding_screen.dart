@@ -16,6 +16,60 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     Navigator.of(context).pushReplacementNamed('/home');
   }
 
+  void _goToRegistration() {
+    Navigator.of(context).pushNamed('/inscription');
+  }
+
+  void _goToLogin() {
+    Navigator.of(context).pushNamed('/connexion');
+  }
+
+  void _showLoginOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Se connecter',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 32),
+              _LoginOptionButton(
+                text: 'Continuer avec Google',
+                icon: Icons.g_mobiledata,
+                onTap: () {
+                  // Google login logic here
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _LoginOptionButton(
+                text: 'Se connecter avec email',
+                icon: Icons.email_outlined,
+                onTap: () {
+                  Navigator.pop(context);
+                  _goToLogin();
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,9 +93,48 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             _OnboardingFooter(
               primaryColor: primaryColor,
               textColor: textColor,
-              onAction: _goToHome,
+              onCreateAccount: _goToRegistration,
+              onAlreadyHaveAccount: _showLoginOptions,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginOptionButton extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _LoginOptionButton({
+    required this.text,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 24, color: _OnboardingScreenState.textColor),
+        label: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: _OnboardingScreenState.textColor,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFFE0E0E0), width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
     );
@@ -111,8 +204,7 @@ class _ScrollingMosaicState extends State<_ScrollingMosaic> {
   }
 
   void _startScrolling() {
-    // Slow linear scroll to a very large offset to simulate infinite
-    const double speed = 30.0; // pixels per second
+    const double speed = 30.0;
     const double targetOffset = 1000000.0;
     final duration1 = Duration(seconds: (targetOffset / speed).round());
     final duration2 = Duration(seconds: (targetOffset / (speed * 0.8)).round());
@@ -201,12 +293,14 @@ class _ImageRow extends StatelessWidget {
 class _OnboardingFooter extends StatelessWidget {
   final Color primaryColor;
   final Color textColor;
-  final VoidCallback onAction;
+  final VoidCallback onCreateAccount;
+  final VoidCallback onAlreadyHaveAccount;
 
   const _OnboardingFooter({
     required this.primaryColor,
     required this.textColor,
-    required this.onAction,
+    required this.onCreateAccount,
+    required this.onAlreadyHaveAccount,
   });
 
   @override
@@ -216,7 +310,7 @@ class _OnboardingFooter extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'Rejoins Occasio et donne une seconde vie aux objets que tu n\'utilises plus.',
+            'Rejoins Occasio et donne une seconde vie à tes objets que tu n\'utilises plus.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: textColor,
@@ -227,12 +321,11 @@ class _OnboardingFooter extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-          // Primary button
           SizedBox(
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: onAction,
+              onPressed: onCreateAccount,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
@@ -252,12 +345,11 @@ class _OnboardingFooter extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Secondary button
           SizedBox(
             width: double.infinity,
             height: 54,
             child: OutlinedButton(
-              onPressed: onAction,
+              onPressed: onAlreadyHaveAccount,
               style: OutlinedButton.styleFrom(
                 foregroundColor: primaryColor,
                 side: BorderSide(color: primaryColor, width: 1.5),

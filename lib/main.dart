@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:occasio/screen/home_screen.dart';
 import 'package:occasio/screen/onboarding_screen.dart';
+import 'package:occasio/screen/registration_screen.dart';
+import 'package:occasio/screen/login_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,6 +24,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const OnboardingScreen(),
         '/home': (context) => const HomeScreen(),
+        '/inscription': (context) => const RegistrationScreen(),
+        '/connexion': (context) => const LoginScreen(),
       },
     );
   }
