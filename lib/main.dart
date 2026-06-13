@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:occasio/screen/home_screen.dart';
 import 'package:occasio/screen/onboarding_screen.dart';
-import 'package:occasio/screen/registration_screen.dart';
-import 'package:occasio/screen/login_screen.dart';
+import 'package:occasio/screen/auth/registration_screen.dart';
+import 'package:occasio/screen/auth/login_screen.dart';
 
 void main() {
   runApp(const MyApp());
