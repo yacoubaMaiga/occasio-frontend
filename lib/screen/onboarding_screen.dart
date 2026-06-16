@@ -24,6 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _showLoginOptions() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: AppColors.blanc,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -44,7 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 32),
               _LoginOptionButton(
                 text: 'Continuer avec Google',
-                icon: Icons.g_mobiledata,
+                iconWidget: Image.asset('assets/icons/google_icon.png', height: 24, width: 24),
                 onTap: () {
                   // Google login logic here
                   Navigator.pop(context);
@@ -53,7 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 12),
               _LoginOptionButton(
                 text: 'Se connecter avec email',
-                icon: Icons.email_outlined,
+                iconWidget: const Icon(Icons.email_outlined, size: 24, color: AppColors.textPrimary),
                 onTap: () {
                   Navigator.pop(context);
                   _goToLogin();
@@ -97,12 +98,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _LoginOptionButton extends StatelessWidget {
   final String text;
-  final IconData icon;
+  final Widget iconWidget;
   final VoidCallback onTap;
 
   const _LoginOptionButton({
     required this.text,
-    required this.icon,
+    required this.iconWidget,
     required this.onTap,
   });
 
@@ -113,7 +114,7 @@ class _LoginOptionButton extends StatelessWidget {
       height: 54,
       child: OutlinedButton.icon(
         onPressed: onTap,
-        icon: Icon(icon, size: 24, color: AppColors.textPrimary),
+        icon: iconWidget,
         label: Text(
           text,
           style: const TextStyle(
