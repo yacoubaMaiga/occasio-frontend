@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -8,10 +9,6 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  static const Color primaryColor = Color(0xFFE07B39);
-  static const Color textColor = Color(0xFF1A1A2E);
-  static const Color skipColor = Color(0xFF9A9AAF); // softer than textColor
-
   void _goToHome() {
     Navigator.of(context).pushReplacementNamed('/home');
   }
@@ -41,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: textColor,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 32),
@@ -73,26 +70,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
             // Top Header
-            _OnboardingHeader(onSkip: _goToHome, skipColor: skipColor),
+            _OnboardingHeader(onSkip: _goToHome),
 
             const SizedBox(height: 12),
 
             // Scrolling Mosaic Section
-            const Expanded(
-              child: _ScrollingMosaic(),
-            ),
+            const Expanded(child: _ScrollingMosaic()),
 
             const SizedBox(height: 32),
 
             // Text and Buttons
             _OnboardingFooter(
-              primaryColor: primaryColor,
-              textColor: textColor,
               onCreateAccount: _goToRegistration,
               onAlreadyHaveAccount: _showLoginOptions,
             ),
@@ -121,17 +113,20 @@ class _LoginOptionButton extends StatelessWidget {
       height: 54,
       child: OutlinedButton.icon(
         onPressed: onTap,
-        icon: Icon(icon, size: 24, color: _OnboardingScreenState.textColor),
+        icon: Icon(icon, size: 24, color: AppColors.textPrimary),
         label: Text(
           text,
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: _OnboardingScreenState.textColor,
+            color: AppColors.textPrimary,
           ),
         ),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFE0E0E0), width: 1.5),
+          side: BorderSide(
+            color: AppColors.textPrimary.withValues(alpha: 0.1),
+            width: 1.5,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -143,9 +138,8 @@ class _LoginOptionButton extends StatelessWidget {
 
 class _OnboardingHeader extends StatelessWidget {
   final VoidCallback onSkip;
-  final Color skipColor;
 
-  const _OnboardingHeader({required this.onSkip, required this.skipColor});
+  const _OnboardingHeader({required this.onSkip});
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +152,7 @@ class _OnboardingHeader extends StatelessWidget {
           child: Text(
             'Passer',
             style: TextStyle(
-              color: skipColor,
+              color: AppColors.textPrimary.withValues(alpha: 0.6),
               fontSize: 15,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.2,
@@ -237,17 +231,11 @@ class _ScrollingMosaicState extends State<_ScrollingMosaic> {
     return Column(
       children: [
         Expanded(
-          child: _ImageRow(
-            controller: _controller1,
-            images: _row1Images,
-          ),
+          child: _ImageRow(controller: _controller1, images: _row1Images),
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: _ImageRow(
-            controller: _controller2,
-            images: _row2Images,
-          ),
+          child: _ImageRow(controller: _controller2, images: _row2Images),
         ),
       ],
     );
@@ -278,8 +266,11 @@ class _ImageRow extends StatelessWidget {
                 imagePath,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
-                  color: const Color(0xFFF0EDE8),
-                  child: const Icon(Icons.image_outlined, color: Color(0xFFBBB8B0)),
+                  color: AppColors.sable,
+                  child: Icon(
+                    Icons.image_outlined,
+                    color: AppColors.textPrimary.withValues(alpha: 0.3),
+                  ),
                 ),
               ),
             ),
@@ -291,14 +282,10 @@ class _ImageRow extends StatelessWidget {
 }
 
 class _OnboardingFooter extends StatelessWidget {
-  final Color primaryColor;
-  final Color textColor;
   final VoidCallback onCreateAccount;
   final VoidCallback onAlreadyHaveAccount;
 
   const _OnboardingFooter({
-    required this.primaryColor,
-    required this.textColor,
     required this.onCreateAccount,
     required this.onAlreadyHaveAccount,
   });
@@ -313,7 +300,7 @@ class _OnboardingFooter extends StatelessWidget {
             'Rejoins Occasio et donne une seconde vie à tes objets que tu n\'utilises plus.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: textColor,
+              color: AppColors.textPrimary,
               fontSize: 22,
               fontWeight: FontWeight.w800,
               height: 1.35,
@@ -327,8 +314,8 @@ class _OnboardingFooter extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onCreateAccount,
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.callToAction,
+                foregroundColor: AppColors.blanc,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -351,18 +338,18 @@ class _OnboardingFooter extends StatelessWidget {
             child: OutlinedButton(
               onPressed: onAlreadyHaveAccount,
               style: OutlinedButton.styleFrom(
-                foregroundColor: primaryColor,
-                side: BorderSide(color: primaryColor, width: 1.5),
+                foregroundColor: AppColors.callToAction,
+                side: const BorderSide(
+                  color: AppColors.callToAction,
+                  width: 1.5,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
               child: const Text(
                 'J\'ai déjà un compte',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),
