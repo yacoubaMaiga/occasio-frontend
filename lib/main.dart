@@ -3,6 +3,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart'; // Ajout de l
 import 'package:occasio/core/token_storage.dart'; // Pour lire le JWT
 import 'package:occasio/screen/auth/verify_email_screen.dart';
 import 'package:occasio/screen/home_screen.dart';
+import 'package:occasio/screen/main_screen.dart';
 import 'package:occasio/screen/onboarding_screen.dart';
 import 'package:occasio/screen/auth/registration_screen.dart';
 import 'package:occasio/screen/auth/login_screen.dart';
@@ -51,7 +52,7 @@ class MyApp extends StatelessWidget {
       routes: {
         // Plus besoin de la route '/' puisque startRoute sera direct /home ou /onboarding
         '/onboarding': (context) => const OnboardingScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/home': (context) => const MainScreen(),
         '/inscription': (context) => const RegistrationScreen(),
         '/connexion': (context) => const LoginScreen(),
       },
