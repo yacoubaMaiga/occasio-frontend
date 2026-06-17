@@ -1,34 +1,21 @@
+import 'user_model.dart';
+
 class AuthResponse {
   final String token;
   final String type;
-  final String id;
-  final String username;
-  final String email;
-  final String firstName;
-  final String lastName;
-  final List<String> roles;
+  final UserModel user;
 
   AuthResponse({
     required this.token,
     required this.type,
-    required this.id,
-    required this.username,
-    required this.email,
-    required this.firstName,
-    required this.lastName,
-    required this.roles,
+    required this.user,
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
     return AuthResponse(
-      token: json['token'],
+      token: json['token'] ?? '',
       type: json['type'] ?? 'Bearer',
-      id: json['id'],
-      username: json['username'],
-      email: json['email'],
-      firstName: json['firstName'],
-      lastName: json['lastName'],
-      roles: List<String>.from(json['roles'] ?? []),
+      user: UserModel.fromJson(json), // Passe les infos au UserModel
     );
   }
 }
