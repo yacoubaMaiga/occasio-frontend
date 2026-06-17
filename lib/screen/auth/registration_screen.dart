@@ -89,9 +89,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           SnackBar(content: Text(message), backgroundColor: AppColors.menthe),
         );
         
-        // --- MAGIE DE L'UX ---
-        // Redirection IMMÉDIATE vers l'écran de vérification OTP
-        // On supprime l'historique pour ne pas revenir sur l'inscription
         Navigator.of(context).pushReplacementNamed(
           '/verification',
           arguments: _emailController.text.trim(), // On transmet l'email pour le Timer/Renvoi
