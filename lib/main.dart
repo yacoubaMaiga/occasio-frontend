@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:occasio/screen/auth/verify_email_screen.dart';
 import 'package:occasio/screen/home_screen.dart';
 import 'package:occasio/screen/onboarding_screen.dart';
 import 'package:occasio/screen/auth/registration_screen.dart';
@@ -26,6 +27,19 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/inscription': (context) => const RegistrationScreen(),
         '/connexion': (context) => const LoginScreen(),
+      },
+
+      onGenerateRoute: (settings) {
+        if (settings.name == '/verification') {
+          // On extrait l'argument transmis (l'email sous forme de String)
+          final email = settings.arguments as String;
+          
+          // On retourne l'écran configuré avec son paramètre
+          return MaterialPageRoute(
+            builder: (context) => VerifyEmailScreen(email: email),
+          );
+        }
+        return null;
       },
     );
   }

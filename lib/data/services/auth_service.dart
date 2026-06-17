@@ -87,4 +87,30 @@ class AuthService {
     }
     return "Impossible de joindre le serveur. Vérifiez votre connexion.";
   }
+
+  // --- VÉRIFICATION DE L'EMAIL ---
+  Future<String> verifyEmail(String code) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.verifyEmail, // Assure-toi d'avoir cette constante dans api_constants.dart
+        data: {'code': code},
+      );
+      return response.data['message'] ?? 'Email vérifié';
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // --- RENVOYER LE CODE ---
+  Future<String> resendCode(String email) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.resendCode, // Assure-toi d'avoir cette constante dans api_constants.dart
+        data: {'email': email},
+      );
+      return response.data['message'] ?? 'Code renvoyé';
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
 }
