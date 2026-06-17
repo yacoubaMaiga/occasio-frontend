@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:occasio/screen/app_colors.dart';
-
-// ─────────────────────────────────────────────
-//  ENTRY POINT
-// ─────────────────────────────────────────────
+import 'package:occasio/service/annonce_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,23 +12,50 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  final AnnonceService _annonceService = AnnonceService();
 
-  // Hauteur du hero photo (en-dessous de l'AppBar)
   static const double _heroHeight = 220.0;
-  // Hauteur de la search bar + ses paddings
   static const double _searchBarTotalHeight = 68.0;
 
   double _scrollOffset = 0.0;
+  
+  List<dynamic> _annonces = [];
+  List<dynamic> _categories = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(() {
       setState(() {
-        _scrollOffset =
-            _scrollController.offset.clamp(0.0, _heroHeight);
+        _scrollOffset = _scrollController.offset.clamp(0.0, _heroHeight);
       });
     });
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final responses = await Future.wait([
+        _annonceService.getCategories(),
+        _annonceService.getAnnonces(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _categories = responses[0];
+          _annonces = responses[1];
+          _isLoading = false; // Tout est chargé en même temps
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de charger les données. Vérifiez votre connexion.')),
+        );
+      }
+    }
   }
 
   @override
@@ -44,68 +68,85 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-
-      // ── AppBar fixe et opaque — rien ne passe derrière ──
-      appBar: _HomeAppBar(),
-
-      // ── Body : hero + search bar (sticky) + contenu ──
-      body: Stack(
-        children: [
-          // Contenu scrollable
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // Espace réservé au hero + search bar
-              SliverToBoxAdapter(
-                child: SizedBox(
-                    height: _heroHeight + _searchBarTotalHeight),
+      appBar: const _HomeAppBar(),
+      
+      // ── MODIFICATION ICI : Un seul loading sur toute la page ──
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.terracotta,
               ),
+            )
+          : Stack(
+              children: [
+                // Contenu principal (Affiché uniquement quand le chargement est fini)
+                CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: _heroHeight + _searchBarTotalHeight),
+                    ),
 
-              SliverToBoxAdapter(
-                child: _SectionTitle(title: 'Parcourir les catégories'),
-              ),
-              SliverToBoxAdapter(child: _CategoriesRow()),
+                    const SliverToBoxAdapter(
+                      child: _SectionTitle(title: 'Parcourir les catégories'),
+                    ),
+                    
+                    SliverToBoxAdapter(
+                      child: _CategoriesRow(categoriesData: _categories),
+                    ),
 
-              SliverToBoxAdapter(
-                child: _SectionTitle(title: 'Annonces récentes'),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverGrid(
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.72,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) =>
-                        _ListingCard(item: _demoListings[index]),
-                    childCount: _demoListings.length,
-                  ),
+                    const SliverToBoxAdapter(
+                      child: _SectionTitle(title: 'Annonces récentes'),
+                    ),
+                    
+                    // Gestion de l'affichage des annonces sans double loading
+                    if (_annonces.isEmpty)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: Center(
+                            child: Text(
+                              'Aucune annonce disponible pour le moment.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverGrid(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 0.65,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => _ListingCard(item: _annonces[index]),
+                            childCount: _annonces.length,
+                          ),
+                        ),
+                      ),
+
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
                 ),
-              ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
-          ),
-
-          // Hero + search bar collés en haut du body, en overlay
-          _HeroWithSearchBar(
-            scrollOffset: _scrollOffset,
-            heroHeight: _heroHeight,
-          ),
-        ],
-      ),
+                // Hero + Barre de recherche persistante
+                _HeroWithSearchBar(
+                  scrollOffset: _scrollOffset,
+                  heroHeight: _heroHeight,
+                ),
+              ],
+            ),
     );
   }
 }
 
 // ─────────────────────────────────────────────
-//  APP BAR  (logo + cloche, fond sable, fixe)
+//  APP BAR
 // ─────────────────────────────────────────────
-
 class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   const _HomeAppBar();
 
@@ -149,9 +190,8 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 // ─────────────────────────────────────────────
-//  HERO + SEARCH BAR  (hero rétrécit, search bar se pin)
+//  HERO + SEARCH BAR
 // ─────────────────────────────────────────────
-
 class _HeroWithSearchBar extends StatelessWidget {
   const _HeroWithSearchBar({
     required this.scrollOffset,
@@ -163,13 +203,11 @@ class _HeroWithSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleHeroHeight =
-        (heroHeight - scrollOffset).clamp(0.0, heroHeight);
+    final visibleHeroHeight = (heroHeight - scrollOffset).clamp(0.0, heroHeight);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Hero photo (se cache progressivement) ──
         ClipRect(
           child: SizedBox(
             height: visibleHeroHeight,
@@ -186,7 +224,6 @@ class _HeroWithSearchBar extends StatelessWidget {
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
                   ),
-                  // Gradient bas → lisibilité du tagline
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -199,14 +236,12 @@ class _HeroWithSearchBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Tagline (s'estompe vite)
                   Positioned(
                     bottom: 16,
                     left: 16,
                     right: 16,
                     child: Opacity(
-                      opacity:
-                          (1 - scrollOffset / heroHeight * 2).clamp(0.0, 1.0),
+                      opacity: (1 - scrollOffset / heroHeight * 2).clamp(0.0, 1.0),
                       child: const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -221,7 +256,7 @@ class _HeroWithSearchBar extends StatelessWidget {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Des milliers d\'annonces près de chez vous',
+                            'Des millions d\'annonces d\'occasion',
                             style: TextStyle(
                               color: AppColors.sable,
                               fontSize: 13,
@@ -237,8 +272,6 @@ class _HeroWithSearchBar extends StatelessWidget {
             ),
           ),
         ),
-
-        // ── Search bar (toujours visible, se pin au bord de l'AppBar) ──
         Container(
           color: AppColors.blanc,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -252,7 +285,6 @@ class _HeroWithSearchBar extends StatelessWidget {
 // ─────────────────────────────────────────────
 //  SEARCH BAR
 // ─────────────────────────────────────────────
-
 class _SearchBar extends StatelessWidget {
   const _SearchBar();
 
@@ -305,13 +337,8 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  SECTION TITLE
-// ─────────────────────────────────────────────
-
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title});
-
   final String title;
 
   @override
@@ -331,49 +358,46 @@ class _SectionTitle extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  CATEGORIES ROW  (horizontal scroll)
+//  CATEGORIES ROW
 // ─────────────────────────────────────────────
-
 class _CategoriesRow extends StatelessWidget {
-  _CategoriesRow();
+  final List<dynamic> categoriesData;
 
-  final List<_Category> categories = [
-    _Category(icon: Icons.checkroom_outlined, label: 'Mode'),
-    _Category(icon: Icons.phone_android_outlined, label: 'Tech'),
-    _Category(icon: Icons.chair_outlined, label: 'Maison'),
-    _Category(icon: Icons.sports_soccer_outlined, label: 'Sport'),
-    _Category(icon: Icons.directions_car_outlined, label: 'Auto'),
-    _Category(icon: Icons.child_friendly_outlined, label: 'Enfants'),
-    _Category(icon: Icons.menu_book_outlined, label: 'Livres'),
-    _Category(icon: Icons.music_note_outlined, label: 'Loisirs'),
-  ];
+  const _CategoriesRow({required this.categoriesData});
 
   @override
   Widget build(BuildContext context) {
+    if (categoriesData.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: Text('Aucune catégorie.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
     return SizedBox(
       height: 90,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
+        itemCount: categoriesData.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) =>
-            _CategoryCard(category: categories[index]),
+        itemBuilder: (context, index) {
+          final cat = categoriesData[index];
+          return _CategoryCard(
+            label: cat['nom'] ?? 'Inconnu',
+            icon: Icons.category_outlined, 
+          );
+        },
       ),
     );
   }
 }
 
-class _Category {
-  const _Category({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-}
-
 class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({required this.category});
+  final String label;
+  final IconData icon;
 
-  final _Category category;
+  const _CategoryCard({required this.label, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -387,11 +411,11 @@ class _CategoryCard extends StatelessWidget {
             color: AppColors.sable,
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(category.icon, color: AppColors.terracotta, size: 26),
+          child: Icon(icon, color: AppColors.terracotta, size: 26),
         ),
         const SizedBox(height: 6),
         Text(
-          category.label,
+          label,
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 12,
@@ -406,32 +430,20 @@ class _CategoryCard extends StatelessWidget {
 // ─────────────────────────────────────────────
 //  LISTING CARD
 // ─────────────────────────────────────────────
-
-class _ListingItem {
-  const _ListingItem({
-    required this.title,
-    required this.price,
-    required this.location,
-    required this.category,
-    this.isFavorite = false,
-    this.isSold = false,
-  });
-
-  final String title;
-  final String price;
-  final String location;
-  final String category;
-  final bool isFavorite;
-  final bool isSold;
-}
-
 class _ListingCard extends StatelessWidget {
-  const _ListingCard({required this.item});
+  final dynamic item;
 
-  final _ListingItem item;
+  const _ListingCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
+    final titre = item['titre'] ?? 'Sans titre';
+    final prix = item['prix']?.toString() ?? '0';
+    final imagePrincipale = item['imagePrincipale'];
+    final estVendu = item['statut'] == 'VENDUE';
+    final estFavori = item['estEnFavori'] ?? false;
+    final vendeur = item['vendeurUsername'] ?? 'Vendeur'; 
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardLight,
@@ -447,33 +459,32 @@ class _ListingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Photo placeholder
           Expanded(
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.sable,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(14)),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.image_outlined,
-                      color: AppColors.terracotta.withValues(alpha: 0.3),
-                      size: 40,
-                    ),
-                  ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                  child: imagePrincipale != null
+                      ? Image.network(
+                          imagePrincipale,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: AppColors.sable,
+                            child: const Icon(Icons.broken_image, color: Colors.grey),
+                          ),
+                        )
+                      : Container(
+                          color: AppColors.sable,
+                          child: Icon(Icons.image_outlined, color: AppColors.terracotta.withValues(alpha: 0.3), size: 40),
+                        ),
                 ),
-                // Badge Vendu
-                if (item.isSold)
+                if (estVendu)
                   Positioned(
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.menthe,
                         borderRadius: BorderRadius.circular(6),
@@ -488,7 +499,6 @@ class _ListingCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                // Bouton favori
                 Positioned(
                   top: 6,
                   right: 6,
@@ -499,35 +509,27 @@ class _ListingCard extends StatelessWidget {
                       color: AppColors.blanc,
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 4,
-                        ),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4),
                       ],
                     ),
                     child: Icon(
-                      item.isFavorite
-                          ? Icons.favorite
-                          : Icons.favorite_border,
+                      estFavori ? Icons.favorite : Icons.favorite_border,
                       size: 16,
-                      color: item.isFavorite
-                          ? AppColors.terracotta
-                          : Colors.grey.shade400,
+                      color: estFavori ? AppColors.terracotta : Colors.grey.shade400,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Infos
           Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  item.title,
+                  titre,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 13,
@@ -538,7 +540,7 @@ class _ListingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  item.price,
+                  '$prix FCFA',
                   style: const TextStyle(
                     color: AppColors.terracotta,
                     fontSize: 16,
@@ -548,13 +550,11 @@ class _ListingCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined,
-                        size: 11,
-                        color: AppColors.nuit.withValues(alpha: 0.45)),
+                    Icon(Icons.person_outline, size: 11, color: AppColors.nuit.withValues(alpha: 0.45)),
                     const SizedBox(width: 2),
                     Expanded(
                       child: Text(
-                        item.location,
+                        vendeur,
                         style: TextStyle(
                           color: AppColors.nuit.withValues(alpha: 0.5),
                           fontSize: 11,
@@ -572,49 +572,3 @@ class _ListingCard extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────
-//  DEMO DATA
-// ─────────────────────────────────────────────
-
-const List<_ListingItem> _demoListings = [
-  _ListingItem(
-    title: 'Canapé 3 places en tissu gris',
-    price: '150 €',
-    location: 'Paris 11e',
-    category: 'Maison',
-  ),
-  _ListingItem(
-    title: 'iPhone 13 – 128 Go – Minuit',
-    price: '380 €',
-    location: 'Lyon 2e',
-    category: 'Tech',
-    isFavorite: true,
-  ),
-  _ListingItem(
-    title: 'Veste en jean Levi\'s – Taille M',
-    price: '35 €',
-    location: 'Bordeaux',
-    category: 'Mode',
-    isSold: true,
-  ),
-  _ListingItem(
-    title: 'Vélo de ville 7 vitesses',
-    price: '90 €',
-    location: 'Nantes',
-    category: 'Sport',
-  ),
-  _ListingItem(
-    title: 'Table basse bois massif',
-    price: '65 €',
-    location: 'Toulouse',
-    category: 'Maison',
-  ),
-  _ListingItem(
-    title: 'Console PS5 + 2 manettes',
-    price: '420 €',
-    location: 'Marseille 6e',
-    category: 'Tech',
-    isFavorite: true,
-  ),
-];
