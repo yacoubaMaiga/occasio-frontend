@@ -220,7 +220,7 @@ class _HeroWithSearchBar extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   Image.asset(
-                    'assets/hero_section.jpeg',
+                    'assets/hero_caroussel/img2.jpeg',
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
                   ),

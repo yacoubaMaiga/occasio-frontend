@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart'; // Requis pour utiliser navigatorKey
+import '../main.dart'; // Importer ton main.dart pour accéder à la navigatorKey
 import 'api_constants.dart';
 import 'token_storage.dart';
 
@@ -24,6 +26,28 @@ class ApiClient {
             }
           }
           return handler.next(options);
+        },
+        // --- NOUVEAU : Interception des erreurs de Token ---
+        onError: (DioException e, handler) async {
+          // Si le backend nous dit que le token est expiré ou invalide (401)
+          if (e.response?.statusCode == 401) {
+            
+            // 1. On vide le coffre-fort
+            await TokenStorage.deleteToken();
+            
+            // 2. On affiche un petit message à l'utilisateur
+            ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+              const SnackBar(
+                content: Text('Votre session a expiré. Veuillez vous reconnecter.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+
+            // 3. On le jette violemment (mais poliment) sur la page de connexion
+            navigatorKey.currentState?.pushNamedAndRemoveUntil('/connexion', (route) => false);
+          }
+          
+          return handler.next(e);
         },
       ),
     );

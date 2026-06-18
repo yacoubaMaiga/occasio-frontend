@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart'; // Ajout de l'import
 import 'package:occasio/core/token_storage.dart'; // Pour lire le JWT
 import 'package:occasio/screen/auth/verify_email_screen.dart';
-import 'package:occasio/screen/home_screen.dart';
 import 'package:occasio/screen/main_screen.dart';
 import 'package:occasio/screen/onboarding_screen.dart';
 import 'package:occasio/screen/auth/registration_screen.dart';
 import 'package:occasio/screen/auth/login_screen.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   // 1. Initialiser le moteur Flutter de base
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Occasio',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
