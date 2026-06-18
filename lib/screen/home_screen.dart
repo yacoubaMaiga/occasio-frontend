@@ -1,5 +1,7 @@
+import 'dart:async'; // Nécessaire pour le Timer du carrousel
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:occasio/screen/annonce/publish_screen.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/service/annonce_service.dart';
 
@@ -45,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _categories = responses[0];
           _annonces = responses[1];
-          _isLoading = false; // Tout est chargé en même temps
+          _isLoading = false; 
         });
       }
     } catch (e) {
@@ -70,7 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.backgroundLight,
       appBar: const _HomeAppBar(),
       
-      // ── MODIFICATION ICI : Un seul loading sur toute la page ──
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
@@ -79,7 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : Stack(
               children: [
-                // Contenu principal (Affiché uniquement quand le chargement est fini)
                 CustomScrollView(
                   controller: _scrollController,
                   slivers: [
@@ -99,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _SectionTitle(title: 'Annonces récentes'),
                     ),
                     
-                    // Gestion de l'affichage des annonces sans double loading
                     if (_annonces.isEmpty)
                       const SliverToBoxAdapter(
                         child: Padding(
@@ -133,7 +132,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
-                // Hero + Barre de recherche persistante
                 _HeroWithSearchBar(
                   scrollOffset: _scrollOffset,
                   heroHeight: _heroHeight,
@@ -188,83 +186,176 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
-
 // ─────────────────────────────────────────────
 //  HERO + SEARCH BAR
 // ─────────────────────────────────────────────
-class _HeroWithSearchBar extends StatelessWidget {
+
+class _HeroWithSearchBar extends StatefulWidget {
+  final double scrollOffset;
+  final double heroHeight;
+
   const _HeroWithSearchBar({
     required this.scrollOffset,
     required this.heroHeight,
   });
 
-  final double scrollOffset;
-  final double heroHeight;
+  @override
+  State<_HeroWithSearchBar> createState() => _HeroWithSearchBarState();
+}
+
+class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startOrRestartTimer(0);
+  }
+
+  void _startOrRestartTimer(int pageIndex) {
+    _timer?.cancel();
+    final duration = pageIndex == 0 ? 5 : 3;
+    _timer = Timer(Duration(seconds: duration), () {
+      if (mounted) {
+        _pageController.animateToPage(
+          pageIndex == 0 ? 1 : 0,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.fastOutSlowIn,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final visibleHeroHeight = (heroHeight - scrollOffset).clamp(0.0, heroHeight);
+    final visibleHeroHeight =
+        (widget.heroHeight - widget.scrollOffset).clamp(0.0, widget.heroHeight);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // ── Hero (rétrécit au scroll) ────────────────────────────────────
         ClipRect(
           child: SizedBox(
             height: visibleHeroHeight,
             width: double.infinity,
             child: OverflowBox(
               alignment: Alignment.topCenter,
-              minHeight: heroHeight,
-              maxHeight: heroHeight,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    'assets/hero_caroussel/img2.jpeg',
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                  ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          AppColors.nuit.withValues(alpha: 0.10),
-                          AppColors.nuit.withValues(alpha: 0.55),
-                        ],
+              // FIX : on contraint exactement à heroHeight pour éviter tout débordement
+              minHeight: widget.heroHeight,
+              maxHeight: widget.heroHeight,
+              child: SizedBox(
+                height: widget.heroHeight, // taille explicite pour l'enfant
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Carrousel
+                    PageView(
+                      controller: _pageController,
+                      onPageChanged: (index) {
+                        setState(() => _currentPage = index);
+                        _startOrRestartTimer(index);
+                      },
+                      children: [
+                        // Slide 1 — Vendre (5 s)
+                        _buildSlide(                          
+                          imagePath: 'assets/hero_caroussel/img1.jpg',
+                          title: 'Gagnez de l\'argent\nfacilement',
+                          subtitle:
+                              'Vendez les objets que vous n\'utilisez plus en 3 clics.',
+                          showCta: true, // Bouton CTA sur ce slide
+                        ),
+                        // Slide 2 — Acheter (3 s)
+                        _buildSlide(
+                          imagePath: 'assets/hero_caroussel/img2.jpeg',
+                          title: 'Choisissez les produits \' qui vous conviennent',
+                          subtitle:
+                              'Des millions d\'annonces d\'occasion près de chez vous.',
+                          showCta: false,
+                        ),
+                      ],
+                    ),
+
+                    // Indicateurs (points)
+                    Positioned(
+                      bottom: 12,
+                      left: 0,
+                      right: 0,
+                      child: Opacity(
+                        opacity: (1 -
+                                widget.scrollOffset / widget.heroHeight * 2)
+                            .clamp(0.0, 1.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildDot(0),
+                            const SizedBox(width: 6),
+                            _buildDot(1),
+                          ],
+                        ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // ── Search bar ───────────────────────────────────────────────────
+        Container(
+          color: AppColors.blanc,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: const _SearchBar(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSlide({
+    required String imagePath,
+    required String title,
+    required String subtitle,
+    required bool showCta,
+  }) {
+    final textOpacity =
+        (1 - widget.scrollOffset / widget.heroHeight * 2).clamp(0.0, 1.0);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Photo
+        Image.asset(
+          imagePath,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          // FIX : errorBuilder neutre — fond sable avec icône, pas de terracotta plein
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: AppColors.sable,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.image_not_supported_outlined,
+                    color: AppColors.nuit.withValues(alpha: 0.2),
+                    size: 36,
                   ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: Opacity(
-                      opacity: (1 - scrollOffset / heroHeight * 2).clamp(0.0, 1.0),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Trouvez votre\nperle rare 🌿',
-                            style: TextStyle(
-                              color: AppColors.blanc,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              height: 1.2,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Des millions d\'annonces d\'occasion',
-                            style: TextStyle(
-                              color: AppColors.sable,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Image non trouvée',
+                    style: TextStyle(
+                      color: AppColors.nuit.withValues(alpha: 0.3),
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -272,12 +363,103 @@ class _HeroWithSearchBar extends StatelessWidget {
             ),
           ),
         ),
-        Container(
-          color: AppColors.blanc,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: const _SearchBar(),
+
+        // Gradient overlay
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.nuit.withValues(alpha: 0.05),
+                AppColors.nuit.withValues(alpha: 0.72),
+              ],
+            ),
+          ),
+        ),
+
+        // Texte + CTA (s'estompe au scroll)
+        Positioned(
+          bottom: 30, // espace pour les points d'indicateur
+          left: 16,
+          right: 16,
+          child: Opacity(
+            opacity: textOpacity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.blanc,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.sable,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                // ── Bouton CTA "Déposer une annonce" (slide 1 uniquement) ──
+                if (showCta) ...[
+                  const SizedBox(height: 14),
+                  GestureDetector(
+                    onTap: () {                      
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PublishScreen()),
+                      );                      
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.terracotta,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.add_circle_outline,
+                              color: AppColors.blanc, size: 16),
+                          SizedBox(width: 8),
+                          Text(
+                            'Publier une annonce',
+                            style: TextStyle(
+                              color: AppColors.blanc,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDot(int index) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: 6,
+      width: _currentPage == index ? 20 : 6,
+      decoration: BoxDecoration(
+        color: _currentPage == index
+            ? AppColors.terracotta
+            : AppColors.blanc.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(3),
+      ),
     );
   }
 }
