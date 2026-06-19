@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:occasio/screen/annonce/publish_screen.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/service/annonce_service.dart';
+import 'package:occasio/widgets/listing_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -122,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             childAspectRatio: 0.65,
                           ),
                           delegate: SliverChildBuilderDelegate(
-                            (context, index) => _ListingCard(item: _annonces[index]),
+                            (context, index) => ListingCard(item: _annonces[index]),
                             childCount: _annonces.length,
                           ),
                         ),
@@ -605,152 +606,6 @@ class _CategoryCard extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-//  LISTING CARD
-// ─────────────────────────────────────────────
-class _ListingCard extends StatelessWidget {
-  final dynamic item;
-
-  const _ListingCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final titre = item['titre'] ?? 'Sans titre';
-    final prix = item['prix']?.toString() ?? '0';
-    final imagePrincipale = item['imagePrincipale'];
-    final estVendu = item['statut'] == 'VENDUE';
-    final estFavori = item['estEnFavori'] ?? false;
-    final vendeur = item['vendeurUsername'] ?? 'Vendeur'; 
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardLight,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.nuit.withValues(alpha: 0.07),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                  child: imagePrincipale != null
-                      ? Image.network(
-                          imagePrincipale,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: AppColors.sable,
-                            child: const Icon(Icons.broken_image, color: Colors.grey),
-                          ),
-                        )
-                      : Container(
-                          color: AppColors.sable,
-                          child: Icon(Icons.image_outlined, color: AppColors.terracotta.withValues(alpha: 0.3), size: 40),
-                        ),
-                ),
-                if (estVendu)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.menthe,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'Vendu',
-                        style: TextStyle(
-                          color: AppColors.blanc,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.blanc,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4),
-                      ],
-                    ),
-                    child: Icon(
-                      estFavori ? Icons.favorite : Icons.favorite_border,
-                      size: 16,
-                      color: estFavori ? AppColors.terracotta : Colors.grey.shade400,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  titre,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$prix FCFA',
-                  style: const TextStyle(
-                    color: AppColors.terracotta,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.person_outline, size: 11, color: AppColors.nuit.withValues(alpha: 0.45)),
-                    const SizedBox(width: 2),
-                    Expanded(
-                      child: Text(
-                        vendeur,
-                        style: TextStyle(
-                          color: AppColors.nuit.withValues(alpha: 0.5),
-                          fontSize: 11,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
