@@ -69,4 +69,13 @@ class AnnonceService {
       throw Exception("Erreur lors de la publication de l'annonce");
     }
   }
+
+  Future<List<dynamic>> getAnnoncesParCategorie(int categorieId) async {
+  try {
+    final response = await _dio.get('/annonces/categorie/$categorieId');
+    return response.data; // Renvoie la liste des annonces de cette catégorie
+  } catch (e) {
+    throw Exception("Erreur lors de la récupération des recommandations");
+  }
+}
 }

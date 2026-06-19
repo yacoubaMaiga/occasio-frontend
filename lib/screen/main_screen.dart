@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:occasio/core/token_storage.dart';
 import 'package:occasio/screen/annonce/publish_screen.dart';
 import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/screen/conversation/conversations_screen.dart';
 import 'package:occasio/screen/home_screen.dart';
 import 'package:occasio/screen/profil_screen.dart'; 
 
@@ -20,7 +21,7 @@ class _MainScreenState extends State<MainScreen> {
     const HomeScreen(),                               // Index 0 : Accueil (Public)
     const Center(child: Text('Recherche (Bientôt)')), // Index 1 : Recherche (Public)
     const SizedBox(),                                 // Index 2 : Vendre (Intercepté / Protégé)
-    const Center(child: Text('Messages (Bientôt)')),  // Index 3 : Messages (Protégé)
+    const ConversationsScreen(),  // Index 3 : Messages (Protégé)
     const ProfilScreen(),         // Index 4 : Profil (Protégé)
   ];
 
