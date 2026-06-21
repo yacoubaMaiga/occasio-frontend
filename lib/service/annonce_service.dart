@@ -31,6 +31,22 @@ class AnnonceService {
     }
   }
 
+  // 🎯 NOUVEAU : Récupérer mes propres annonces
+  Future<List<dynamic>> getMesAnnonces() async {
+    try {
+      final response = await _dio.get('/annonces/mes-annonces');
+      
+      // Le backend renvoie une "Page", les données sont dans "content"
+      if (response.data != null && response.data['content'] != null) {
+        return response.data['content'];
+      }
+      return [];
+    } catch (e) {
+      print("Erreur API getMesAnnonces: $e");
+      throw Exception("Erreur lors de la récupération de mes annonces");
+    }
+  }
+
   Future<void> creerAnnonce({
     required String titre,
     required String description,

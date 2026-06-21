@@ -19,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   final AnnonceService _annonceService = AnnonceService();
-  final MessagerieService _messagerieService = MessagerieService(); // Ajout du service messagerie
+  final MessagerieService _messagerieService = MessagerieService();
 
   static const double _heroHeight = 220.0;
   static const double _searchBarTotalHeight = 68.0;
@@ -28,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   
   List<dynamic> _annonces = [];
   List<dynamic> _categories = [];
-  int _unreadMessagesCount = 0; // Compteur de messages non lus
+  int _unreadMessagesCount = 0;
   bool _isLoading = true;
 
   @override
@@ -49,8 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _annonceService.getAnnonces(),
       ]);
 
-      // Chargement "silencieux" des conversations
-      // Si l'utilisateur n'est pas connecté, ça plantera silencieusement sans bloquer l'accueil
       int unread = 0;
       try {
         final conversations = await _messagerieService.getMesConversations();
@@ -58,14 +56,14 @@ class _HomeScreenState extends State<HomeScreen> {
           unread += (conv['nonLus'] as int? ?? 0);
         }
       } catch (_) {
-        // L'utilisateur n'est probablement pas connecté, on ignore
+        // Ignoré si l'utilisateur n'est pas connecté
       }
 
       if (mounted) {
         setState(() {
           _categories = responses[0];
           _annonces = responses[1];
-          _unreadMessagesCount = unread; // Mise à jour du badge
+          _unreadMessagesCount = unread;
           _isLoading = false; 
         });
       }
@@ -89,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      // On passe le nombre de messages non lus à l'AppBar
       appBar: _HomeAppBar(unreadCount: _unreadMessagesCount),
       
       body: _isLoading
@@ -163,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ─────────────────────────────────────────────
-//  APP BAR (MISE À JOUR)
+//  APP BAR
 // ─────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final int unreadCount;
@@ -176,6 +173,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      automaticallyImplyLeading: false, // Désactive la flèche de retour automatique
       backgroundColor: AppColors.sable,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -189,7 +187,6 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         GestureDetector(
           onTap: () {
-            // Ouvre la liste des conversations par-dessus le Home (avec flèche retour par défaut)
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ConversationsScreen()),
             );
@@ -198,7 +195,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
             width: 36,
             height: 36,
             margin: const EdgeInsets.only(right: 16),
-            color: Colors.transparent, // Suppression du fond gris
+            color: Colors.transparent,
             child: Stack(
               alignment: Alignment.center,
               clipBehavior: Clip.none,
@@ -206,9 +203,8 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
                 const Icon(
                   Icons.notifications_outlined,
                   color: AppColors.nuit,
-                  size: 26, // Taille légèrement augmentée
+                  size: 26,
                 ),
-                // Badge rouge conditionnel
                 if (unreadCount > 0)
                   Positioned(
                     right: 4,
@@ -246,7 +242,6 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
 // ─────────────────────────────────────────────
 //  HERO + SEARCH BAR
 // ─────────────────────────────────────────────
-
 class _HeroWithSearchBar extends StatefulWidget {
   final double scrollOffset;
   final double heroHeight;
@@ -300,7 +295,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Hero (rétrécit au scroll) ────────────────────────────────────
         ClipRect(
           child: SizedBox(
             height: visibleHeroHeight,
@@ -314,7 +308,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Carrousel
                     PageView(
                       controller: _pageController,
                       onPageChanged: (index) {
@@ -322,7 +315,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                         _startOrRestartTimer(index);
                       },
                       children: [
-                        // Slide 1
                         _buildSlide(                          
                           imagePath: 'assets/hero_caroussel/img1.jpg',
                           title: 'Gagnez de l\'argent\nfacilement',
@@ -330,7 +322,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                               'Vendez les objets que vous n\'utilisez plus en 3 clics.',
                           showCta: true, 
                         ),
-                        // Slide 2
                         _buildSlide(
                           imagePath: 'assets/hero_caroussel/img2.jpeg',
                           title: 'Choisissez les produits\nqui vous conviennent',
@@ -340,8 +331,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                         ),
                       ],
                     ),
-
-                    // Indicateurs (points)
                     Positioned(
                       bottom: 12,
                       left: 0,
@@ -366,8 +355,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
             ),
           ),
         ),
-
-        // ── Search bar ───────────────────────────────────────────────────
         Container(
           color: AppColors.blanc,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -389,7 +376,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Photo
         Image.asset(
           imagePath,
           fit: BoxFit.cover,
@@ -418,8 +404,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
             ),
           ),
         ),
-
-        // Gradient overlay
         DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -432,8 +416,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
             ),
           ),
         ),
-
-        // Texte + CTA
         Positioned(
           bottom: 30,
           left: 16,

@@ -4,46 +4,61 @@ import 'package:occasio/core/api_client.dart';
 class ProfilService {
   final Dio _dio = ApiClient.instance;
 
-  // Récupérer les informations du profil connecté
+  // 🎯 Récupérer mon profil privé (MonProfilResponse)
   Future<Map<String, dynamic>> getMonProfil() async {
     try {
       final response = await _dio.get('/profil');
-      return response.data; // Renvoie les données du profil (MonProfilResponse)
-    } on DioException catch (e) {
-      throw _handleError(e);
+      return response.data;
+    } catch (e) {
+      throw Exception('Erreur lors du chargement du profil');
     }
   }
 
-  // Mettre à jour les informations du profil
+  // 🎯 Modifier les champs texte du profil (ProfilRequest)
   Future<Map<String, dynamic>> modifierProfil({
-    required String firstName,
-    required String lastName,
-    required String username,
-    String? phoneNumber,
+    required String nom,
+    required String prenom,
+    required String telephone,
   }) async {
     try {
       final response = await _dio.put(
         '/profil',
-        data: {
-          'firstName': firstName,
-          'lastName': lastName,
-          'username': username,
-          'phoneNumber': ?phoneNumber,
-        },
+        data: {'firstName': prenom, 'lastName': nom, 'phoneNumber': telephone},
+        options: Options(contentType: 'application/json'),
       );
       return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
+    } catch (e) {
+      throw Exception('Erreur lors de la modification du profil');
     }
   }
 
-  String _handleError(DioException e) {
-    if (e.response != null && e.response?.data != null) {
-      final data = e.response?.data;
-      if (data is Map<String, dynamic> && data.containsKey('message')) {
-        return data['message'];
-      }
+  // 🎯 Mettre à jour la photo de profil (MultipartFile)
+  Future<Map<String, dynamic>> modifierPhotoProfil(
+    String cheminLocalPhoto,
+  ) async {
+    try {
+      final formData = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(cheminLocalPhoto),
+      });
+
+      final response = await _dio.patch(
+        '/profil/photo',
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+      return response.data;
+    } catch (e) {
+      throw Exception('Erreur lors du changement de la photo de profil');
     }
-    return "Une erreur est survenue avec le serveur de profil.";
+  }
+
+  // 🎯 Récupérer le profil public d'un autre utilisateur (PubliProfilResponse)
+  Future<Map<String, dynamic>> getProfilPublic(String userId) async {
+    try {
+      final response = await _dio.get('/profil/$userId');
+      return response.data;
+    } catch (e) {
+      throw Exception('Erreur lors du chargement du profil public');
+    }
   }
 }

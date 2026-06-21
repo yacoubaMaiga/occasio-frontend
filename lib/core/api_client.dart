@@ -16,8 +16,44 @@ const _publicPaths = [
   '/profil',
 ];
 
-bool _isPublicPath(String path) {
-  return _publicPaths.any((p) => path.contains(p));
+// Remplace la fonction _isPublicPath par celle-ci
+
+bool _isPublicPath(RequestOptions options) {
+  final path = options.path;
+  final method = options.method.toUpperCase();
+
+  // Routes strictement publiques (chemin + méthode)
+  const publicRoutes = [
+    // Auth
+    'GET /auth/',
+    'POST /auth/',
+    // Annonces publiques
+    'GET /annonces/recherche',
+    'GET /annonces/categorie',
+    'GET /annonces',          // liste
+    // Catégories
+    'GET /categories',
+    // Uploads
+    'GET /uploads',
+    // Profil public uniquement (GET sur un userId précis)
+    // On vérifie séparément ci-dessous
+  ];
+
+  // Vérification générique
+  for (final route in publicRoutes) {
+    final parts = route.split(' ');
+    final routeMethod = parts[0];
+    final routePath = parts[1];
+    if (method == routeMethod && path.contains(routePath)) return true;
+  }
+
+  // Profil public : GET /profil/{userId} — l'id est un UUID donc > 10 chars après /profil/
+  if (method == 'GET' && path.contains('/profil/')) {
+    final afterProfil = path.split('/profil/').last;
+    if (afterProfil.length > 10) return true; // UUID = 36 chars
+  }
+
+  return false;
 }
 
 class ApiClient {
@@ -52,7 +88,7 @@ class ApiClient {
             // optionnel était invalide — pas que la session est expirée.
             final path = e.requestOptions.path;
 
-            if (_isPublicPath(path)) {
+            if (_isPublicPath(e.requestOptions)) {
               // Route publique : on supprime juste le token invalide
               // mais on ne redirige PAS vers la connexion.
               await TokenStorage.deleteToken();
