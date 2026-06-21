@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/screen/conversation/chat_screen.dart';
 import 'package:occasio/service/annonce_service.dart';
+import 'package:occasio/service/messagerie_service.dart';
 
 class AnnonceDetailScreen extends StatefulWidget {
   final dynamic item; // Map JSON issu de AnnonceResponse
@@ -125,8 +127,49 @@ class _AnnonceDetailScreenState extends State<AnnonceDetailScreen> {
     setState(() => _isFavori = !_isFavori);
   }
 
-  void _contacterVendeur() {}
+  void _contacterVendeur() async {
+    // Évite que l'utilisateur clique plusieurs fois pendant le chargement
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.terracotta)),
+    );
 
+    try {
+      final MessagerieService messagerieService = MessagerieService();
+      
+      // 1. Ouvre ou récupère la conversation depuis le backend
+      final conv = await messagerieService.ouvrirConversation(widget.item['id'].toString());
+      
+      if (mounted) {
+        Navigator.pop(context); // Ferme le loader de chargement
+
+        // 2. Navigue directement vers la page de Chat
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              conversationId: conv['id'],
+              interlocuteurName: conv['username'] ?? 'Vendeur',
+              interlocuteurId: conv['userId'], // 🎯 ON PASSE L'ID ICI
+              produitInfo: {
+                'titre': titre,
+                'prix': '$prix FCFA',
+                'image': images.isNotEmpty ? images[0] : null,
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Ferme le loader
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Impossible d'ouvrir la discussion pour le moment.")),
+        );
+      }
+    }
+  }
   void _signalerAnnonce() {}
 
   @override
@@ -312,7 +355,7 @@ class _PhotoGallery extends StatelessWidget {
                 images[index],
                 fit: BoxFit.cover,
                 width: double.infinity,
-                errorBuilder: (_, __, ___) => _PhotoPlaceholder(),
+                errorBuilder: (_, _, _) => _PhotoPlaceholder(),
               );
             },
           ),
@@ -651,7 +694,7 @@ class _RecommandationsSection extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) => _RecoCard(item: items[index]),
                     ),
         ),
@@ -696,7 +739,7 @@ class _RecoCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                 child: img != null
-                    ? Image.network(img, fit: BoxFit.cover, width: double.infinity, height: double.infinity, errorBuilder: (_, __, ___) => _fallbackIcon())
+                    ? Image.network(img, fit: BoxFit.cover, width: double.infinity, height: double.infinity, errorBuilder: (_, _, _) => _fallbackIcon())
                     : _fallbackIcon(),
               ),
             ),

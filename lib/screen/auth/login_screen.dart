@@ -169,12 +169,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Veuillez renseigner votre e-mail';
+                      }
                       if (!RegExp(
                         r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      ).hasMatch(value))
+                      ).hasMatch(value)) {
                         return 'E-mail invalide';
+                      }
                       return null;
                     },
                   ),
@@ -214,8 +216,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Veuillez renseigner votre mot de passe';
+                      }
                       return null;
                     },
                   ),

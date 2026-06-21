@@ -55,7 +55,7 @@ class _PublishScreenState extends State<PublishScreen> {
   final ImagePicker _picker = ImagePicker();
   final AnnonceService _annonceService = AnnonceService(); // Instance du service
 
-  List<File> _images = [];
+  final List<File> _images = [];
   EtatArticle? _etatSelectionne;
   dynamic _categorieSelectionnee;
   bool _isSubmitting = false;

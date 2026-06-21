@@ -28,7 +28,7 @@ class ProfilService {
           'firstName': firstName,
           'lastName': lastName,
           'username': username,
-          if (phoneNumber != null) 'phoneNumber': phoneNumber,
+          'phoneNumber': ?phoneNumber,
         },
       );
       return response.data;

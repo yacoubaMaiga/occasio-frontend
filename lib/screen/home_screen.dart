@@ -1,9 +1,12 @@
-import 'dart:async'; // Nécessaire pour le Timer du carrousel
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:occasio/screen/annonce/publish_screen.dart';
 import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/screen/conversation/conversations_screen.dart';
+import 'package:occasio/screen/search_screen.dart';
 import 'package:occasio/service/annonce_service.dart';
+import 'package:occasio/service/messagerie_service.dart';
 import 'package:occasio/widgets/listing_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   final AnnonceService _annonceService = AnnonceService();
+  final MessagerieService _messagerieService = MessagerieService(); // Ajout du service messagerie
 
   static const double _heroHeight = 220.0;
   static const double _searchBarTotalHeight = 68.0;
@@ -24,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   
   List<dynamic> _annonces = [];
   List<dynamic> _categories = [];
+  int _unreadMessagesCount = 0; // Compteur de messages non lus
   bool _isLoading = true;
 
   @override
@@ -44,10 +49,23 @@ class _HomeScreenState extends State<HomeScreen> {
         _annonceService.getAnnonces(),
       ]);
 
+      // Chargement "silencieux" des conversations
+      // Si l'utilisateur n'est pas connecté, ça plantera silencieusement sans bloquer l'accueil
+      int unread = 0;
+      try {
+        final conversations = await _messagerieService.getMesConversations();
+        for (var conv in conversations) {
+          unread += (conv['nonLus'] as int? ?? 0);
+        }
+      } catch (_) {
+        // L'utilisateur n'est probablement pas connecté, on ignore
+      }
+
       if (mounted) {
         setState(() {
           _categories = responses[0];
           _annonces = responses[1];
+          _unreadMessagesCount = unread; // Mise à jour du badge
           _isLoading = false; 
         });
       }
@@ -71,7 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: const _HomeAppBar(),
+      // On passe le nombre de messages non lus à l'AppBar
+      appBar: _HomeAppBar(unreadCount: _unreadMessagesCount),
       
       body: _isLoading
           ? const Center(
@@ -144,10 +163,12 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ─────────────────────────────────────────────
-//  APP BAR
+//  APP BAR (MISE À JOUR)
 // ─────────────────────────────────────────────
 class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _HomeAppBar();
+  final int unreadCount;
+
+  const _HomeAppBar({required this.unreadCount});
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -167,19 +188,53 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         GestureDetector(
-          onTap: () {},
+          onTap: () {
+            // Ouvre la liste des conversations par-dessus le Home (avec flèche retour par défaut)
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ConversationsScreen()),
+            );
+          },
           child: Container(
             width: 36,
             height: 36,
             margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: AppColors.nuit.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.nuit,
-              size: 20,
+            color: Colors.transparent, // Suppression du fond gris
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.notifications_outlined,
+                  color: AppColors.nuit,
+                  size: 26, // Taille légèrement augmentée
+                ),
+                // Badge rouge conditionnel
+                if (unreadCount > 0)
+                  Positioned(
+                    right: 4,
+                    top: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 14,
+                        minHeight: 14,
+                      ),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : unreadCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -187,6 +242,7 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
+
 // ─────────────────────────────────────────────
 //  HERO + SEARCH BAR
 // ─────────────────────────────────────────────
@@ -251,11 +307,10 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
             width: double.infinity,
             child: OverflowBox(
               alignment: Alignment.topCenter,
-              // FIX : on contraint exactement à heroHeight pour éviter tout débordement
               minHeight: widget.heroHeight,
               maxHeight: widget.heroHeight,
               child: SizedBox(
-                height: widget.heroHeight, // taille explicite pour l'enfant
+                height: widget.heroHeight, 
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -267,18 +322,18 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                         _startOrRestartTimer(index);
                       },
                       children: [
-                        // Slide 1 — Vendre (5 s)
+                        // Slide 1
                         _buildSlide(                          
                           imagePath: 'assets/hero_caroussel/img1.jpg',
                           title: 'Gagnez de l\'argent\nfacilement',
                           subtitle:
                               'Vendez les objets que vous n\'utilisez plus en 3 clics.',
-                          showCta: true, // Bouton CTA sur ce slide
+                          showCta: true, 
                         ),
-                        // Slide 2 — Acheter (3 s)
+                        // Slide 2
                         _buildSlide(
                           imagePath: 'assets/hero_caroussel/img2.jpeg',
-                          title: 'Choisissez les produits \' qui vous conviennent',
+                          title: 'Choisissez les produits\nqui vous conviennent',
                           subtitle:
                               'Des millions d\'annonces d\'occasion près de chez vous.',
                           showCta: false,
@@ -339,7 +394,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
           imagePath,
           fit: BoxFit.cover,
           alignment: Alignment.center,
-          // FIX : errorBuilder neutre — fond sable avec icône, pas de terracotta plein
           errorBuilder: (context, error, stackTrace) => Container(
             color: AppColors.sable,
             child: Center(
@@ -379,9 +433,9 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
           ),
         ),
 
-        // Texte + CTA (s'estompe au scroll)
+        // Texte + CTA
         Positioned(
-          bottom: 30, // espace pour les points d'indicateur
+          bottom: 30,
           left: 16,
           right: 16,
           child: Opacity(
@@ -407,7 +461,6 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-                // ── Bouton CTA "Déposer une annonce" (slide 1 uniquement) ──
                 if (showCta) ...[
                   const SizedBox(height: 14),
                   GestureDetector(
@@ -473,48 +526,56 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppColors.sable.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.sable),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 12),
-          const Icon(Icons.search, color: AppColors.nuit, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Vêtements, meubles, électronique…',
-                hintStyle: TextStyle(
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const SearchScreen(
+              autoFocus: true, 
+              showBackButton: true,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppColors.sable.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.sable),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 12),
+            const Icon(Icons.search, color: AppColors.nuit, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Vêtements, meubles, électronique…',
+                style: TextStyle(
                   color: AppColors.nuit.withValues(alpha: 0.45),
                   fontSize: 14,
                 ),
-                border: InputBorder.none,
-                isDense: true,
               ),
             ),
-          ),
-          Container(
-            margin: const EdgeInsets.all(6),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.terracotta,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              'Filtres',
-              style: TextStyle(
-                color: AppColors.blanc,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            Container(
+              margin: const EdgeInsets.all(6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.terracotta,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Filtres',
+                style: TextStyle(
+                  color: AppColors.blanc,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -563,7 +624,7 @@ class _CategoriesRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: categoriesData.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final cat = categoriesData[index];
           return _CategoryCard(

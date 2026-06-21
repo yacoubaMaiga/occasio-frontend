@@ -21,9 +21,11 @@ class AnnonceService {
   // Récupérer les annonces actives (page 0)
   Future<List<dynamic>> getAnnonces() async {
     try {
-      final response = await _dio.get('/annonces?page=0&size=20&sortBy=createdAt&sortDirection=desc');
+      final response = await _dio.get(
+        '/annonces?page=0&size=20&sortBy=createdAt&sortDirection=desc',
+      );
       // Le backend renvoie une "Page", les données sont dans "content"
-      return response.data['content']; 
+      return response.data['content'];
     } catch (e) {
       throw Exception("Erreur lors de la récupération des annonces");
     }
@@ -47,20 +49,21 @@ class AnnonceService {
       'categorieId': categorieId,
     };
 
-    formData.files.add(MapEntry(
-      'annonce',
-      MultipartFile.fromString(
-        jsonEncode(annonceData),
-        contentType: MediaType.parse('application/json'),
+    formData.files.add(
+      MapEntry(
+        'annonce',
+        MultipartFile.fromString(
+          jsonEncode(annonceData),
+          contentType: MediaType.parse('application/json'),
+        ),
       ),
-    ));
+    );
 
     // 2. Les fichiers images (pour le @RequestPart("image") de Spring)
     for (var file in images) {
-      formData.files.add(MapEntry(
-        'image',
-        await MultipartFile.fromFile(file.path),
-      ));
+      formData.files.add(
+        MapEntry('image', await MultipartFile.fromFile(file.path)),
+      );
     }
 
     try {
@@ -71,11 +74,43 @@ class AnnonceService {
   }
 
   Future<List<dynamic>> getAnnoncesParCategorie(int categorieId) async {
-  try {
-    final response = await _dio.get('/annonces/categorie/$categorieId');
-    return response.data; // Renvoie la liste des annonces de cette catégorie
-  } catch (e) {
-    throw Exception("Erreur lors de la récupération des recommandations");
+    try {
+      final response = await _dio.get('/annonces/categorie/$categorieId');
+      return response.data; // Renvoie la liste des annonces de cette catégorie
+    } catch (e) {
+      throw Exception("Erreur lors de la récupération des recommandations");
+    }
   }
-}
+
+  // Recherche avec filtres
+  Future<List<dynamic>> rechercher({
+    String? q,
+    int? categorieId,
+    String? etat,
+    int? prixMin,
+    int? prixMax,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (q != null && q.trim().isNotEmpty) queryParams['q'] = q;
+      if (categorieId != null && categorieId > 0) queryParams['categorieId'] = categorieId;
+      if (etat != null && etat.isNotEmpty) queryParams['etat'] = etat;
+      if (prixMin != null) queryParams['prixMin'] = prixMin;
+      if (prixMax != null) queryParams['prixMax'] = prixMax;
+
+      final response = await _dio.get(
+        '/annonces/recherche',
+        queryParameters: queryParams,
+      );
+
+      // Spring Boot renvoie un objet Page, la liste est dans "content"
+      if (response.data != null && response.data['content'] != null) {
+        return response.data['content'];
+      }
+      return [];
+    } catch (e) {
+      print("Erreur lors de la recherche: $e");
+      return [];
+    }
+  }
 }
