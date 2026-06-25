@@ -12,7 +12,7 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  // Tous les contrôleurs requis par ton backend
+  // Tous les contrôleurs requis
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -32,7 +32,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   void initState() {
     super.initState();
-    // On écoute uniquement les champs OBLIGATOIRES pour activer le bouton
     _firstNameController.addListener(_checkFieldsNotEmpty);
     _lastNameController.addListener(_checkFieldsNotEmpty);
     _usernameController.addListener(_checkFieldsNotEmpty);
@@ -64,40 +63,41 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     super.dispose();
   }
 
-  Future<void> _handleRegister() async {
-    // Validation du formulaire (regex, mots de passe identiques, etc.)
+ Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
     FocusScope.of(context).unfocus();
     setState(() { _isLoading = true; });
 
     try {
-      // Appel de la méthode register que nous avons créée dans AuthService
-      final message = await _authService.register(
+      await _authService.register(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
-        phoneNumber: _phoneController.text.trim(), // Peut être vide
+        phoneNumber: _phoneController.text.trim(),
         password: _passwordController.text,
-        confirmPassword: _confirmPasswordController.text,
       );
 
       if (mounted) {
-        // Message de succès du backend (ex: "Inscription réussie, veuillez vérifier votre email.")
+        // Message de bienvenue avec sa couleur verte (#1D9E75)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: AppColors.menthe),
+          const SnackBar(
+            content: Text('Bienvenue sur Occasio !'), 
+            backgroundColor: AppColors.menthe
+          ),
         );
         
-        Navigator.of(context).pushReplacementNamed(
-          '/verification',
-          arguments: _emailController.text.trim(), // On transmet l'email pour le Timer/Renvoi
-        );
+        // L'utilisateur est connecté, on l'envoie direct à l'accueil
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')), 
+            backgroundColor: Colors.redAccent
+          ),
         );
       }
     } finally {
@@ -106,7 +106,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,7 +139,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // --- LIGNE PRÉNOM & NOM ---
                   Row(
                     children: [
                       Expanded(
@@ -179,7 +177,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- CHAMP USERNAME ---
                   TextFormField(
                     controller: _usernameController,
                     textInputAction: TextInputAction.next,
@@ -200,7 +197,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- CHAMP EMAIL ---
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -222,7 +218,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- CHAMP TÉLÉPHONE (Optionnel) ---
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
@@ -239,7 +234,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- CHAMP MOT DE PASSE ---
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -259,7 +253,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Veuillez créer un mot de passe';
-                      // Validation "Strong Password" similaire à ton backend
                       if (value.length < 8) return 'Minimum 8 caractères';
                       if (!RegExp(r'(?=.*[A-Z])').hasMatch(value)) return 'Au moins une majuscule';
                       if (!RegExp(r'(?=.*[0-9])').hasMatch(value)) return 'Au moins un chiffre';
@@ -268,7 +261,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- CHAMP CONFIRMATION MOT DE PASSE ---
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
@@ -295,7 +287,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // --- BOUTON D'INSCRIPTION ---
                   SizedBox(
                     height: 54,
                     child: ElevatedButton(
@@ -313,7 +304,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // --- LIEN VERS CONNEXION ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

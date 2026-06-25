@@ -69,31 +69,13 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final errorMessage = e.toString();
-
-        // --- INTERCEPTION DU MESSAGE DE TON BACKEND ---
-        if (errorMessage.contains("non vérifié") ||
-            errorMessage.contains("inactif")) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Votre compte nécessite une vérification.'),
-              backgroundColor: AppColors.terracotta,
-              duration: Duration(seconds: 4),
-            ),
-          );
-          // Redirection vers l'écran de code (si tu l'as créé)
-          Navigator.of(
-            context,
-          ).pushNamed('/verification', arguments: _emailController.text.trim());
-        } else {
-          // Erreur classique : "Email ou mot de passe invalide"
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
+        // Affiche directement l'erreur proprement formattée par le AuthService
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     } finally {
       if (mounted) {

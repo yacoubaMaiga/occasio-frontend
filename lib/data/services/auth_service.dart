@@ -1,136 +1,70 @@
-import 'package:dio/dio.dart';
-import '../../core/api_client.dart';
-import '../../core/api_constants.dart';
-import '../../core/token_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 
 class AuthService {
-  // On récupère directement l'instance statique que tu as créée dans api_client.dart
-  final Dio _dio = ApiClient.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // --- CONNEXION ---
   Future<UserModel> login(String email, String password) async {
     try {
-      // 1. Appel de l'endpoint de connexion
-      final authResponse = await _dio.post(
-        ApiConstants.login,
-        data: {'email': email, 'password': password},
+      final AuthResponse response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
 
-      final token = authResponse.data['token'];
+      if (response.user == null) throw Exception("Erreur d'authentification");
 
-      // 2. Sauvegarde du Token via ton fichier token_storage.dart
-      await TokenStorage.saveToken(token);
+      // Récupération des données du profil dans ta table public.users
+      final userData = await _supabase
+          .from('users')
+          .select()
+          .eq('id', response.user!.id)
+          .single();
 
-      // 3. Récupération du profil complet
-      final profilResponse = await _dio.get('/profil');
-
-      return UserModel.fromJson(profilResponse.data);
-    } on DioException catch (e) {
-      throw _handleError(e);
+      return UserModel.fromJson(userData);
+    } on AuthException catch (e) {
+      throw Exception("Email ou mot de passe invalide.");
+    } catch (e) {
+      throw Exception("Erreur système: $e");
     }
   }
 
   // --- INSCRIPTION ---
-  Future<String> register({
+// --- INSCRIPTION ---
+  Future<void> register({
     required String username,
     required String email,
     required String password,
-    required String confirmPassword,
     required String firstName,
     required String lastName,
     String? phoneNumber,
   }) async {
     try {
-      final response = await _dio.post(
-        ApiConstants.register,
+      final AuthResponse response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
         data: {
           'username': username,
-          'email': email,
-          'password': password,
-          'confirmPassword': confirmPassword,
-          'firstName': firstName,
-          'lastName': lastName,
-          if (phoneNumber != null && phoneNumber.isNotEmpty)
-            'phoneNumber': phoneNumber,
+          'first_name': firstName,
+          'last_name': lastName,
+          'phone_number': phoneNumber ?? '',
         },
       );
-      return response.data['message'] ?? 'Inscription réussie';
-    } on DioException catch (e) {
-      throw _handleError(e);
+
+      if (response.session == null) {
+        throw Exception("Le compte a été créé, mais la session n'a pas pu démarrer. Essayez de vous connecter manuellement via l'écran de connexion.");
+      }
+      
+    } on AuthException catch (e) {
+      // On affiche le message EXACT renvoyé par Supabase
+      throw Exception("Supabase Auth : ${e.message}");
+    } catch (e) {
+      // On affiche l'erreur système EXACTE (ex: Timeout, TypeError...)
+      throw Exception("Erreur système : $e"); 
     }
   }
-
-  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
-  try {
-    final response = await _dio.post(
-      '/auth/google',
-      data: {'idToken': idToken},
-    );
- 
-    // ✅ Sauvegarder le JWT exactement comme après un login classique
-    final jwt = response.data['token'] ?? response.data['accessToken'];
-    if (jwt != null) {
-      await TokenStorage.saveToken(jwt);
-    }
- 
-    return response.data;
-  } catch (e) {
-    throw Exception('Erreur de connexion via Google');
-  }
-}
-
-
   // --- DÉCONNEXION ---
   Future<void> logout() async {
-    // Utilisation de ta méthode statique
-    await TokenStorage.deleteToken();
-  }
-
-  // --- GESTION DES ERREURS ---
-  String _handleError(DioException e) {
-    if (e.response != null && e.response?.data != null) {
-      final data = e.response?.data;
-
-      // Messages d'erreurs classiques du backend (GlobalExceptionHandler)
-      if (data is Map<String, dynamic> && data.containsKey('message')) {
-        return data['message'];
-      }
-      // Erreurs de validation de formulaire du backend (ValidationExceptionHandler)
-      if (data is Map<String, dynamic> &&
-          data.containsKey('**** Erreurs ****: ')) {
-        final errors = data['**** Erreurs ****: '] as List;
-        return errors.join('\n');
-      }
-    }
-    return "Impossible de joindre le serveur. Vérifiez votre connexion.";
-  }
-
-  // --- VÉRIFICATION DE L'EMAIL ---
-  Future<String> verifyEmail(String code) async {
-    try {
-      final response = await _dio.post(
-        ApiConstants
-            .verifyEmail, // Assure-toi d'avoir cette constante dans api_constants.dart
-        data: {'code': code},
-      );
-      return response.data['message'] ?? 'Email vérifié';
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  // --- RENVOYER LE CODE ---
-  Future<String> resendCode(String email) async {
-    try {
-      final response = await _dio.post(
-        ApiConstants
-            .resendCode, // Assure-toi d'avoir cette constante dans api_constants.dart
-        data: {'email': email},
-      );
-      return response.data['message'] ?? 'Code renvoyé';
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
+    await _supabase.auth.signOut();
   }
 }
