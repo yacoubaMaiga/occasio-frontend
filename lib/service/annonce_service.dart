@@ -1,105 +1,119 @@
-import 'dart:convert';
 import 'dart:io';
-
-import 'package:dio/dio.dart';
-import 'package:occasio/core/api_client.dart';
-import 'package:http_parser/http_parser.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/models/annonce_model.dart';
+import '../data/models/categorie_model.dart';
 
 class AnnonceService {
-  final Dio _dio = ApiClient.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Récupérer les catégories
-  Future<List<dynamic>> getCategories() async {
+  // --- CATÉGORIES ---
+  Future<List<CategorieModel>> getCategories() async {
     try {
-      final response = await _dio.get('/categories');
-      return response.data; // Retourne la liste des catégories
+      // Utilise .select() et récupère directement le résultat typé
+      final List<dynamic> response = await _supabase
+          .from('categories')
+          .select()
+          .order('nom');
+
+      print("Données brutes reçues de Supabase : $response"); // DEBUG ICI
+
+      return response.map((json) => CategorieModel.fromJson(json)).toList();
     } catch (e) {
-      throw Exception("Erreur lors de la récupération des catégories");
+      print("Erreur dans getCategories: $e");
+      throw Exception("Erreur lors de la récupération des catégories: $e");
     }
   }
 
-  // Récupérer les annonces actives (page 0)
-  Future<List<dynamic>> getAnnonces() async {
-    try {
-      final response = await _dio.get(
-        '/annonces?page=0&size=20&sortBy=createdAt&sortDirection=desc',
-      );
-      // Le backend renvoie une "Page", les données sont dans "content"
-      return response.data['content'];
-    } catch (e) {
-      throw Exception("Erreur lors de la récupération des annonces");
-    }
-  }
-
-  // 🎯 NOUVEAU : Récupérer mes propres annonces
-  Future<List<dynamic>> getMesAnnonces() async {
-    try {
-      final response = await _dio.get('/annonces/mes-annonces');
-      
-      // Le backend renvoie une "Page", les données sont dans "content"
-      if (response.data != null && response.data['content'] != null) {
-        return response.data['content'];
-      }
-      return [];
-    } catch (e) {
-      print("Erreur API getMesAnnonces: $e");
-      throw Exception("Erreur lors de la récupération de mes annonces");
-    }
-  }
-
-  Future<void> creerAnnonce({
+  // --- CRÉER UNE ANNONCE ---
+  Future<void> createAnnonce({
     required String titre,
     required String description,
     required int prix,
     required String etat,
     required int categorieId,
-    required List<File> images,
+    required List<String> imagesUrls,
   }) async {
-    final formData = FormData();
-    // 1. Les données de l'annonce (JSON pour le @RequestPart("annonce") de Spring)
-    final annonceData = {
-      'titre': titre,
-      'description': description,
-      'prix': prix,
-      'etat': etat,
-      'categorieId': categorieId,
-    };
-
-    formData.files.add(
-      MapEntry(
-        'annonce',
-        MultipartFile.fromString(
-          jsonEncode(annonceData),
-          contentType: MediaType.parse('application/json'),
-        ),
-      ),
-    );
-
-    // 2. Les fichiers images (pour le @RequestPart("image") de Spring)
-    for (var file in images) {
-      formData.files.add(
-        MapEntry('image', await MultipartFile.fromFile(file.path)),
-      );
-    }
-
     try {
-      await _dio.post('/annonces', data: formData);
+      // 1. On récupère l'ID du vendeur connecté
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception("Vous devez être connecté pour publier.");
+      }
+
+      // 2. On insère la nouvelle ligne dans la table annonces
+      await _supabase.from('annonces').insert({
+        'titre': titre,
+        'description': description,
+        'prix': prix,
+        'etat': etat,
+        'categorie_id': categorieId,
+        'vendeur_id': userId,
+        'images': imagesUrls,
+        'statut': 'ACTIVE',
+      });
     } catch (e) {
-      throw Exception("Erreur lors de la publication de l'annonce");
+      throw Exception("Erreur lors de la publication : $e");
     }
   }
 
-  Future<List<dynamic>> getAnnoncesParCategorie(int categorieId) async {
+  // --- SUPPRIMER UNE ANNONCE ---
+  Future<void> deleteAnnonce(String annonceId) async {
     try {
-      final response = await _dio.get('/annonces/categorie/$categorieId');
-      return response.data; // Renvoie la liste des annonces de cette catégorie
+      // Grâce aux règles de sécurité (RLS) PostgreSQL,
+      // la suppression sera rejetée si l'annonce n'appartient pas au user connecté !
+      await _supabase.from('annonces').delete().eq('id', annonceId);
     } catch (e) {
-      throw Exception("Erreur lors de la récupération des recommandations");
+      throw Exception("Impossible de supprimer l'annonce : $e");
     }
   }
 
-  // Recherche avec filtres
-  Future<List<dynamic>> rechercher({
+  // --- TOUTES LES ANNONCES ACTIVES (AVEC PAGINATION) ---
+  Future<List<AnnonceModel>> getAnnonces({int offset = 0, int limit = 10}) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+
+      var query = _supabase
+          .from('annonces')
+          .select('*, vendeur:users(username), categorie:categories(nom)')
+          .eq('statut', 'ACTIVE');
+
+      // On exclut les annonces de l'utilisateur connecté
+      if (userId != null) {
+        query = query.neq('vendeur_id', userId);
+      }
+
+      // 💡 MAGIE ICI : On applique le tri et la pagination (range)
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1); 
+          // Si offset = 0 et limit = 10 -> range(0, 9)
+      
+      return (response as List).map((json) => AnnonceModel.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception("Erreur lors de la récupération des annonces paginées: $e");
+    }
+  }
+  // --- MES ANNONCES ---
+  Future<List<AnnonceModel>> getMesAnnonces() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception("Non connecté");
+
+      final response = await _supabase
+          .from('annonces')
+          .select('*, vendeur:users(username), categorie:categories(nom)')
+          .eq('vendeur_id', userId)
+          .order('created_at', ascending: false);
+      return (response as List)
+          .map((json) => AnnonceModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      throw Exception("Erreur lors de la récupération de vos annonces: $e");
+    }
+  }
+
+  // --- RECHERCHE ---
+  Future<List<AnnonceModel>> rechercher({
     String? q,
     int? categorieId,
     String? etat,
@@ -107,26 +121,23 @@ class AnnonceService {
     int? prixMax,
   }) async {
     try {
-      final queryParams = <String, dynamic>{};
-      if (q != null && q.trim().isNotEmpty) queryParams['q'] = q;
-      if (categorieId != null && categorieId > 0) queryParams['categorieId'] = categorieId;
-      if (etat != null && etat.isNotEmpty) queryParams['etat'] = etat;
-      if (prixMin != null) queryParams['prixMin'] = prixMin;
-      if (prixMax != null) queryParams['prixMax'] = prixMax;
+      var query = _supabase
+          .from('annonces')
+          .select('*, vendeur:users(username), categorie:categories(nom)')
+          .eq('statut', 'ACTIVE');
 
-      final response = await _dio.get(
-        '/annonces/recherche',
-        queryParameters: queryParams,
-      );
+      if (q != null && q.isNotEmpty) query = query.ilike('titre', '%$q%');
+      if (categorieId != null) query = query.eq('categorie_id', categorieId);
+      if (etat != null && etat.isNotEmpty) query = query.eq('etat', etat);
+      if (prixMin != null) query = query.gte('prix', prixMin);
+      if (prixMax != null) query = query.lte('prix', prixMax);
 
-      // Spring Boot renvoie un objet Page, la liste est dans "content"
-      if (response.data != null && response.data['content'] != null) {
-        return response.data['content'];
-      }
-      return [];
+      final response = await query.order('created_at', ascending: false);
+      return (response as List)
+          .map((json) => AnnonceModel.fromJson(json))
+          .toList();
     } catch (e) {
-      print("Erreur lors de la recherche: $e");
-      return [];
+      throw Exception("Erreur lors de la recherche: $e");
     }
   }
 }

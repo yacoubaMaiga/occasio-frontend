@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/service/profil_service.dart';
+import 'package:occasio/utils/phone_formatter.dart'; // Import du nouveau formateur
 
 class EditProfilScreen extends StatefulWidget {
   final Map<String, dynamic> profilData;
@@ -27,24 +29,34 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
       text: widget.profilData['firstName'],
     );
     _nomController = TextEditingController(text: widget.profilData['lastName']);
+
+    // Si la colonne en base est vide, on initialise avec le préfixe de base "+223 "
+    String phone = widget.profilData['phoneNumber'] ?? '';
     _phoneController = TextEditingController(
-      text: widget.profilData['phoneNumber'],
+      text: MaliPhoneInputFormatter.formatInitial(phone),
     );
   }
 
   Future<void> _sauvegarder() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Masquer le clavier
-    FocusScope.of(context).unfocus();
+    String phoneNettoye = _phoneController.text.trim().replaceAll(' ', '');
+    if (phoneNettoye == '+223') {
+      phoneNettoye = ''; // Devient null en base de données
+    }
 
+    FocusScope.of(context).unfocus();
     setState(() => _isSaving = true);
+
     try {
+      phoneNettoye = _phoneController.text.trim().replaceAll(' ', '');
+
       await _profilService.modifierProfil(
         nom: _nomController.text.trim(),
         prenom: _prenomController.text.trim(),
-        telephone: _phoneController.text.trim(),
+        telephone: phoneNettoye,
       );
+
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +113,6 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Petit texte d'introduction
                           Text(
                             'Gérez vos données personnelles.',
                             style: TextStyle(
@@ -111,7 +122,6 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // Formulaire
                           _buildPremiumField(
                             label: 'Prénom',
                             hint: 'Entrez votre prénom',
@@ -126,12 +136,30 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
                             controller: _nomController,
                           ),
                           const SizedBox(height: 20),
+
+                          // ── Champ Téléphone Intelligent ──
                           _buildPremiumField(
                             label: 'Numéro de téléphone',
                             hint: 'Ex: +223 70 00 00 00',
                             icon: Icons.phone_outlined,
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
+                            maxLength: 16,
+                            inputFormatters: [MaliPhoneInputFormatter()],
+                            validator: (v) {
+                              if (v == null ||
+                                  v.trim() == '+223' ||
+                                  v.trim() == '+223 ') {
+                                return null; // Autorise la suppression ou l'absence de numéro
+                              }
+                              final phonePur = v.replaceAll(' ', '');
+                              final digitsOnly = phonePur.substring(4);
+
+                              if (digitsOnly.length != 8) {
+                                return 'Veuillez compléter les 8 chiffres';
+                              }
+                              return null;
+                            },
                           ),
                         ],
                       ),
@@ -139,7 +167,6 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
                   ),
                 ),
 
-                // Bouton de sauvegarde fixe en bas
                 Container(
                   padding: EdgeInsets.fromLTRB(
                     20,
@@ -191,6 +218,9 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
     required IconData icon,
     required TextEditingController controller,
     TextInputType? keyboardType,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,6 +237,8 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          maxLength: maxLength,
+          inputFormatters: inputFormatters,
           style: const TextStyle(
             fontSize: 15,
             color: AppColors.textPrimary,
@@ -214,6 +246,8 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
           ),
           decoration: InputDecoration(
             hintText: hint,
+            counterText:
+                '', // Masque le compteur de caractères par défaut de Flutter
             hintStyle: TextStyle(
               color: AppColors.nuit.withValues(alpha: 0.3),
               fontSize: 14,
@@ -253,8 +287,11 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
               borderSide: const BorderSide(color: Colors.redAccent, width: 2),
             ),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Ce champ est obligatoire' : null,
+          validator:
+              validator ??
+              (v) => v == null || v.trim().isEmpty
+                  ? 'Ce champ est obligatoire'
+                  : null,
         ),
       ],
     );

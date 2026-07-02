@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:occasio/core/token_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import 'package:occasio/screen/annonce/publish_screen.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/screen/conversation/conversations_screen.dart';
 import 'package:occasio/screen/home_screen.dart';
-import 'package:occasio/screen/profil_screen.dart';
+import 'package:occasio/screen/profil/profil_screen.dart';
 import 'package:occasio/screen/search_screen.dart'; 
 
 class MainScreen extends StatefulWidget {
@@ -17,43 +17,39 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // Liste complète des 5 écrans correspondant aux 5 onglets
   final List<Widget> _screens = [
-    const HomeScreen(),                               // Index 0 : Accueil (Public)
-    const SearchScreen(),                             // Index 1 : Recherche (Public)
-    const SizedBox(),                                 // Index 2 : Vendre (Intercepté / Protégé)
-    const ConversationsScreen(),  // Index 3 : Messages (Protégé)
-    const ProfilScreen(),         // Index 4 : Profil (Protégé)
+    const HomeScreen(),
+    const SearchScreen(),
+    const SizedBox(), // Index 2 : Vendre (Intercepté)
+    const ConversationsScreen(),
+    const ProfilScreen(),
   ];
 
-  // Gestion asynchrone du changement d'onglet
   Future<void> _onItemTapped(int index) async {
-    // 1. Interception pour les onglets nécessitant obligatoirement un compte
+    // 1. Interception avec Supabase : vérifie si l'utilisateur est connecté
     if (index == 2 || index == 3 || index == 4) {
-      final token = await TokenStorage.getToken();
-      
-      if (token == null || token.isEmpty) {
-        // L'utilisateur est un visiteur anonyme : on affiche l'invite de connexion
+      final user = Supabase.instance.client.auth.currentUser;
+              
+      if (user == null) {
+        // L'utilisateur est un visiteur anonyme
         _showLoginRequiredBottomSheet();
         return;
       }
     }
 
-    // 2. Si l'utilisateur est connecté ou si l'onglet est public
+    // 2. Navigation
     if (index == 2) {
-      // Ouverture de la page de création par-dessus le reste
       Navigator.of(context).push(
         MaterialPageRoute(builder: (context) => const PublishScreen()),
       );
     } else {
-      // Navigation classique entre les onglets
       setState(() {
         _selectedIndex = index;
       });
     }
   }
 
-  // Composant visuel incitant le visiteur à s'authentifier
+  // --- Le reste du code (UI BottomSheet et BottomNavigationBar) reste identique ---
   void _showLoginRequiredBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -74,8 +70,8 @@ class _MainScreenState extends State<MainScreen> {
                   color: AppColors.terracotta.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child:  Icon(
-                  Icons.lock_outlined, // Icône de cadenas épurée
+                child:  const Icon(
+                  Icons.lock_outlined,
                   color: AppColors.terracotta,
                   size: 28,
                 ),
@@ -101,7 +97,6 @@ class _MainScreenState extends State<MainScreen> {
               ),
               const SizedBox(height: 32),
               
-              // Bouton principal : Connexion
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -116,17 +111,12 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   child: const Text(
                     'Se connecter',
-                    style: TextStyle(
-                      color: AppColors.blanc,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: AppColors.blanc, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               
-              // Bouton secondaire : Création de compte
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -141,11 +131,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   child: const Text(
                     'Créer un compte',
-                    style: TextStyle(
-                      color: AppColors.terracotta,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: AppColors.terracotta, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -182,31 +168,11 @@ class _MainScreenState extends State<MainScreen> {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Accueil',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              activeIcon: Icon(Icons.search),
-              label: 'Recherche',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline, size: 28),
-              activeIcon: Icon(Icons.add_circle, size: 28),
-              label: 'Vendre',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline),
-              activeIcon: Icon(Icons.chat_bubble),
-              label: 'Messages',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profil',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Accueil'),
+            BottomNavigationBarItem(icon: Icon(Icons.search_outlined), activeIcon: Icon(Icons.search), label: 'Recherche'),
+            BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline, size: 28), activeIcon: Icon(Icons.add_circle, size: 28), label: 'Vendre'),
+            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat_bubble), label: 'Messages'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profil'),
           ],
         ),
       ),

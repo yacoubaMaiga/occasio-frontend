@@ -4,10 +4,6 @@ import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/screen/conversation/chat_screen.dart';
 import 'package:occasio/service/messagerie_service.dart';
 
-// ─────────────────────────────────────────────
-//  MODÈLE LOCAL
-// ─────────────────────────────────────────────
-
 enum _ConvStatut { actif, vendu, archive }
 
 class _Conversation {
@@ -37,10 +33,6 @@ class _Conversation {
   final _ConvStatut statut;
   final String? imageAnnonce;
 }
-
-// ─────────────────────────────────────────────
-//  ENTRY POINT
-// ─────────────────────────────────────────────
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -96,14 +88,12 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     }
   }
 
-  // Convertir le statut Backend en statut UI
   _ConvStatut _mapStatut(String? statut) {
     if (statut == 'VENDUE') return _ConvStatut.vendu;
     if (statut == 'SUPPRIMEE' || statut == 'EN_PAUSE') return _ConvStatut.archive;
     return _ConvStatut.actif;
   }
 
-  // Formatage intelligent de la date (10:34, Hier, 12/06)
   String _formatDate(String? dateStr) {
     if (dateStr == null) return '';
     final date = DateTime.parse(dateStr).toLocal();
@@ -148,13 +138,10 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             color: AppColors.terracotta,
             child: Column(
               children: [
-                // ── Barre de recherche ──────────────────────────────────────
                 _SearchBar(
                   controller: _searchController,
                   onChanged: (v) => setState(() => _searchQuery = v),
                 ),
-
-                // ── Contenu tabulé ──────────────────────────────────────────
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -180,10 +167,6 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     );
   }
 }
-
-// ─────────────────────────────────────────────
-//  APP BAR
-// ─────────────────────────────────────────────
 
 class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidget {
   const _ConversationsAppBar({required this.tabController});
@@ -244,10 +227,6 @@ class _ConversationsAppBar extends StatelessWidget implements PreferredSizeWidge
   }
 }
 
-// ─────────────────────────────────────────────
-//  BARRE DE RECHERCHE
-// ─────────────────────────────────────────────
-
 class _SearchBar extends StatelessWidget {
   const _SearchBar({required this.controller, required this.onChanged});
 
@@ -302,10 +281,6 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  LISTE DES CONVERSATIONS
-// ─────────────────────────────────────────────
-
 class _ConversationList extends StatelessWidget {
   const _ConversationList({required this.conversations, required this.emptyLabel});
 
@@ -314,9 +289,7 @@ class _ConversationList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (conversations.isEmpty) {
-      return _EmptyState(label: emptyLabel);
-    }
+    if (conversations.isEmpty) return _EmptyState(label: emptyLabel);
 
     return ListView.separated(
       padding: EdgeInsets.zero,
@@ -331,10 +304,6 @@ class _ConversationList extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────
-//  TUILE DE CONVERSATION
-// ─────────────────────────────────────────────
 
 class _ConversationTile extends StatelessWidget {
   const _ConversationTile({required this.conv});
@@ -358,7 +327,6 @@ class _ConversationTile extends StatelessWidget {
                 'titre': conv.titrAnnonce,
                 'prix': conv.prixAnnonce,
                 'image': conv.imageAnnonce,
-                'monId': null, // Le backend s'adaptera via l'intercepteur de token
               },
             ),
           ),
@@ -370,7 +338,6 @@ class _ConversationTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Avatar ───────────────────────────────────────────────
             Stack(
               children: [
                 Container(
@@ -405,8 +372,6 @@ class _ConversationTile extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 12),
-
-            // ── Contenu principal ─────────────────────────────────────
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,23 +471,14 @@ class _ConversationTile extends StatelessWidget {
 
   Color _avatarColor(String initiale) {
     const colors = [
-      AppColors.nuit,
-      AppColors.terracotta,
-      AppColors.menthe,
-      Color(0xFF6B7DB3),
-      Color(0xFF8B6B9E),
+      AppColors.nuit, AppColors.terracotta, AppColors.menthe, Color(0xFF6B7DB3), Color(0xFF8B6B9E),
     ];
     return colors[initiale.codeUnitAt(0) % colors.length];
   }
 }
 
-// ─────────────────────────────────────────────
-//  ÉTAT VIDE
-// ─────────────────────────────────────────────
-
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.label});
-
   final String label;
 
   @override

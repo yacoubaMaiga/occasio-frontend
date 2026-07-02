@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/service/annonce_service.dart';
+import 'package:occasio/data/models/categorie_model.dart'; // Import du modèle
 
 enum EtatArticle { NEUF, TRES_BON_ETAT, BON_ETAT, ETAT_CORRECT }
 
@@ -35,10 +37,6 @@ extension EtatArticleExt on EtatArticle {
   }
 }
 
-// ─────────────────────────────────────────────
-//  ENTRY POINT
-// ─────────────────────────────────────────────
-
 class PublishScreen extends StatefulWidget {
   const PublishScreen({super.key});
 
@@ -53,14 +51,14 @@ class _PublishScreenState extends State<PublishScreen> {
   final _prixController = TextEditingController();
 
   final ImagePicker _picker = ImagePicker();
-  final AnnonceService _annonceService = AnnonceService(); // Instance du service
+  final AnnonceService _annonceService = AnnonceService();
 
   final List<File> _images = [];
   EtatArticle? _etatSelectionne;
-  dynamic _categorieSelectionnee;
+  CategorieModel? _categorieSelectionnee; // Modèle typé
   bool _isSubmitting = false;
 
-  List<dynamic> _categories = [];
+  List<CategorieModel> _categories = []; // Modèle typé
   bool _loadingCategories = true;
 
   @override
@@ -69,7 +67,6 @@ class _PublishScreenState extends State<PublishScreen> {
     _loadCategories();
   }
 
-  // ── Chargement depuis le Backend ────────────────
   Future<void> _loadCategories() async {
     try {
       final categoriesData = await _annonceService.getCategories();
@@ -87,7 +84,6 @@ class _PublishScreenState extends State<PublishScreen> {
     }
   }
 
-  // ── Sélection d'images ────────────────────
   Future<void> _pickImage(ImageSource source) async {
     if (_images.length >= 5) {
       _showSnack('Maximum 5 photos par annonce.');
@@ -96,8 +92,8 @@ class _PublishScreenState extends State<PublishScreen> {
     try {
       final XFile? file = await _picker.pickImage(
         source: source,
-        imageQuality: 85,
-        maxWidth: 1200,
+        imageQuality: 80,
+        maxWidth: 1080,
       );
       if (file != null) {
         setState(() => _images.add(File(file.path)));
@@ -111,7 +107,6 @@ class _PublishScreenState extends State<PublishScreen> {
     setState(() => _images.removeAt(index));
   }
 
-  // ── Soumission au Backend ─────────────────
   Future<void> _submit() async {
     if (_images.isEmpty) {
       _showSnack('Ajoutez au moins une photo.');
@@ -130,24 +125,49 @@ class _PublishScreenState extends State<PublishScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      await _annonceService.creerAnnonce(
+      // 1. Upload des images vers Supabase Storage
+      List<String> uploadedUrls = [];
+      for (File image in _images) {
+        final fileExt = image.path.split('.').last;
+        final userId = Supabase.instance.client.auth.currentUser!.id;
+        final fileName =
+            '$userId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+
+        await Supabase.instance.client.storage
+            .from('annonces')
+            .upload(fileName, image);
+
+        final String publicUrl = Supabase.instance.client.storage
+            .from('annonces')
+            .getPublicUrl(fileName);
+
+        uploadedUrls.add(publicUrl);
+      }
+
+      // 2. Sauvegarde de l'annonce dans la base de données
+      await _annonceService.createAnnonce(
         titre: _titreController.text.trim(),
         description: _descriptionController.text.trim(),
         prix: int.parse(_prixController.text.trim()),
-        etat: _etatSelectionne!.name, // Renvoie "NEUF", "TRES_BON_ETAT"...
-        categorieId: _categorieSelectionnee['id'],
-        images: _images,
+        etat: _etatSelectionne!.name,
+        categorieId: _categorieSelectionnee!.id,
+        imagesUrls: uploadedUrls,
       );
 
       if (mounted) {
         setState(() => _isSubmitting = false);
-        _showSnack('Annonce publiée avec succès ! 🎉');
-        Navigator.of(context).pop(); // Retour à la page précédente
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Annonce publiée avec succès ! 🎉'),
+            backgroundColor: AppColors.menthe,
+          ),
+        );
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        _showSnack('Erreur lors de la publication de l\'annonce.');
+        _showSnack('Erreur lors de la publication : $e');
       }
     }
   }
@@ -158,7 +178,7 @@ class _PublishScreenState extends State<PublishScreen> {
         content: Text(message),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        backgroundColor: AppColors.nuit,
+        backgroundColor: Colors.redAccent,
       ),
     );
   }
@@ -171,30 +191,22 @@ class _PublishScreenState extends State<PublishScreen> {
     super.dispose();
   }
 
-  // ── Build ─────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: _PublishAppBar(
-        isSubmitting: _isSubmitting,
-        onPublish: _submit,
-      ),
+      appBar: _PublishAppBar(isSubmitting: _isSubmitting, onPublish: _submit),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
-            // 1. Photos
             _PhotoSection(
               images: _images,
               onPickFromGallery: () => _pickImage(ImageSource.gallery),
               onPickFromCamera: () => _pickImage(ImageSource.camera),
               onRemove: _removeImage,
-            ),            
-
-            // 2. Infos principales
+            ),
             _FormSection(
               title: 'Décrivez votre article',
               child: Column(
@@ -204,32 +216,25 @@ class _PublishScreenState extends State<PublishScreen> {
                     label: 'Titre',
                     hint: 'Ex : iPhone 13 Pro – 256 Go',
                     maxLength: 100,
-                    validator: (v) {
-                      if (v == null || v.trim().length < 3) {
-                        return 'Au moins 3 caractères';
-                      }
-                      return null;
-                    },
+                    validator: (v) => (v == null || v.trim().length < 3)
+                        ? 'Au moins 3 caractères'
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   _OccasioTextField(
                     controller: _descriptionController,
                     label: 'Description',
-                    hint: 'Décrivez l\'état, les dimensions, les accessoires inclus…',
+                    hint:
+                        'Décrivez l\'état, les dimensions, les accessoires inclus…',
                     maxLines: 4,
                     maxLength: 1000,
-                    validator: (v) {
-                      if (v == null || v.trim().length < 10) {
-                        return 'Au moins 10 caractères';
-                      }
-                      return null;
-                    },
+                    validator: (v) => (v == null || v.trim().length < 10)
+                        ? 'Au moins 10 caractères'
+                        : null,
                   ),
                 ],
               ),
             ),
-
-            // 3. Prix
             _FormSection(
               title: 'Prix',
               child: _OccasioTextField(
@@ -241,20 +246,20 @@ class _PublishScreenState extends State<PublishScreen> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Saisissez un prix';
-                  final n = int.tryParse(v);
-                  if (n == null || n < 0) return 'Prix invalide';
+                  if ((int.tryParse(v) ?? -1) < 0) return 'Prix invalide';
                   return null;
                 },
               ),
             ),
-
-            // 4. Catégorie
             _FormSection(
               title: 'Catégorie',
               child: _loadingCategories
                   ? const Center(
                       child: CircularProgressIndicator(
-                          color: AppColors.terracotta, strokeWidth: 2))
+                        color: AppColors.terracotta,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : _CategorySelector(
                       categories: _categories,
                       selected: _categorieSelectionnee,
@@ -262,10 +267,6 @@ class _PublishScreenState extends State<PublishScreen> {
                           setState(() => _categorieSelectionnee = cat),
                     ),
             ),
-
-            
-
-            // 5. État de l'article
             _FormSection(
               title: 'État de l\'article',
               child: _EtatSelector(
@@ -273,14 +274,13 @@ class _PublishScreenState extends State<PublishScreen> {
                 onSelect: (e) => setState(() => _etatSelectionne = e),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Bouton publier (pied de page alternatif si besoin)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _PublishButton(
-                  isSubmitting: _isSubmitting, onTap: _submit),
+                isSubmitting: _isSubmitting,
+                onTap: _submit,
+              ),
             ),
           ],
         ),
@@ -289,14 +289,8 @@ class _PublishScreenState extends State<PublishScreen> {
   }
 }
 
-// ─────────────────────────────────────────────
-//  APP BAR
-// ─────────────────────────────────────────────
-
 class _PublishAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _PublishAppBar(
-      {required this.isSubmitting, required this.onPublish});
-
+  const _PublishAppBar({required this.isSubmitting, required this.onPublish});
   final bool isSubmitting;
   final VoidCallback onPublish;
 
@@ -329,8 +323,7 @@ class _PublishAppBar extends StatelessWidget implements PreferredSizeWidget {
             onTap: onPublish,
             child: Container(
               margin: const EdgeInsets.only(right: 16),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: AppColors.terracotta,
                 borderRadius: BorderRadius.circular(20),
@@ -350,10 +343,6 @@ class _PublishAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  SECTION PHOTOS
-// ─────────────────────────────────────────────
-
 class _PhotoSection extends StatelessWidget {
   const _PhotoSection({
     required this.images,
@@ -361,7 +350,6 @@ class _PhotoSection extends StatelessWidget {
     required this.onPickFromCamera,
     required this.onRemove,
   });
-
   final List<File> images;
   final VoidCallback onPickFromGallery;
   final VoidCallback onPickFromCamera;
@@ -408,7 +396,6 @@ class _PhotoSection extends StatelessWidget {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                // Boutons d'ajout (galerie + caméra)
                 if (images.length < 5) ...[
                   _AddPhotoButton(
                     icon: Icons.photo_library_outlined,
@@ -423,16 +410,15 @@ class _PhotoSection extends StatelessWidget {
                   ),
                   if (images.isNotEmpty) const SizedBox(width: 10),
                 ],
-                // Miniatures des photos sélectionnées
                 ...images.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final file = entry.value;
                   return Padding(
-                    padding: EdgeInsets.only(right: i < images.length - 1 ? 10 : 0),
+                    padding: EdgeInsets.only(
+                      right: entry.key < images.length - 1 ? 10 : 0,
+                    ),
                     child: _PhotoThumbnail(
-                      file: file,
-                      isPrimary: i == 0,
-                      onRemove: () => onRemove(i),
+                      file: entry.value,
+                      isPrimary: entry.key == 0,
+                      onRemove: () => onRemove(entry.key),
                     ),
                   );
                 }),
@@ -451,7 +437,6 @@ class _AddPhotoButton extends StatelessWidget {
     required this.label,
     required this.onTap,
   });
-
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -497,7 +482,6 @@ class _PhotoThumbnail extends StatelessWidget {
     required this.isPrimary,
     required this.onRemove,
   });
-
   final File file;
   final bool isPrimary;
   final VoidCallback onRemove;
@@ -508,14 +492,8 @@ class _PhotoThumbnail extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            file,
-            width: 90,
-            height: 110,
-            fit: BoxFit.cover,
-          ),
+          child: Image.file(file, width: 90, height: 110, fit: BoxFit.cover),
         ),
-        // Badge "Principale"
         if (isPrimary)
           Positioned(
             bottom: 6,
@@ -538,7 +516,6 @@ class _PhotoThumbnail extends StatelessWidget {
               ),
             ),
           ),
-        // Bouton supprimer
         Positioned(
           top: 4,
           right: 4,
@@ -560,13 +537,8 @@ class _PhotoThumbnail extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  SECTION WRAPPER
-// ─────────────────────────────────────────────
-
 class _FormSection extends StatelessWidget {
   const _FormSection({required this.title, required this.child});
-
   final String title;
   final Widget child;
 
@@ -593,10 +565,6 @@ class _FormSection extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  CHAMP TEXTE
-// ─────────────────────────────────────────────
-
 class _OccasioTextField extends StatelessWidget {
   const _OccasioTextField({
     required this.controller,
@@ -609,7 +577,6 @@ class _OccasioTextField extends StatelessWidget {
     this.inputFormatters,
     this.validator,
   });
-
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -629,10 +596,7 @@ class _OccasioTextField extends StatelessWidget {
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       validator: validator,
-      style: const TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 15,
-      ),
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -661,8 +625,7 @@ class _OccasioTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppColors.terracotta, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.terracotta, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -672,8 +635,10 @@ class _OccasioTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         counterStyle: TextStyle(
           color: AppColors.nuit.withValues(alpha: 0.35),
           fontSize: 11,
@@ -683,20 +648,15 @@ class _OccasioTextField extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  SÉLECTEUR DE CATÉGORIE
-// ─────────────────────────────────────────────
-
 class _CategorySelector extends StatelessWidget {
   const _CategorySelector({
     required this.categories,
     required this.selected,
     required this.onSelect,
   });
-
-  final List<dynamic> categories;
-  final dynamic selected;
-  final void Function(dynamic) onSelect;
+  final List<CategorieModel> categories;
+  final CategorieModel? selected;
+  final void Function(CategorieModel) onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -704,30 +664,28 @@ class _CategorySelector extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: categories.map((cat) {
-        final isSelected = selected != null && selected['id'] == cat['id'];
+        final isSelected = selected != null && selected!.id == cat.id;
         return GestureDetector(
           onTap: () => onSelect(cat),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.terracotta : AppColors.sable.withValues(alpha: 0.5),
+              color: isSelected
+                  ? AppColors.terracotta
+                  : AppColors.sable.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isSelected
-                    ? AppColors.terracotta
-                    : AppColors.sable,
+                color: isSelected ? AppColors.terracotta : AppColors.sable,
                 width: 1.5,
               ),
             ),
             child: Text(
-              cat['nom'] ?? '',
+              cat.nom,
               style: TextStyle(
                 color: isSelected ? AppColors.blanc : AppColors.nuit,
                 fontSize: 13,
-                fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ),
@@ -737,13 +695,8 @@ class _CategorySelector extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  SÉLECTEUR D'ÉTAT
-// ─────────────────────────────────────────────
-
 class _EtatSelector extends StatelessWidget {
   const _EtatSelector({required this.selected, required this.onSelect});
-
   final EtatArticle? selected;
   final void Function(EtatArticle) onSelect;
 
@@ -770,7 +723,6 @@ class _EtatSelector extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // Bouton radio custom
                 Container(
                   width: 20,
                   height: 20,
@@ -831,13 +783,8 @@ class _EtatSelector extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  BOUTON PUBLIER (bas de page)
-// ─────────────────────────────────────────────
-
 class _PublishButton extends StatelessWidget {
   const _PublishButton({required this.isSubmitting, required this.onTap});
-
   final bool isSubmitting;
   final VoidCallback onTap;
 

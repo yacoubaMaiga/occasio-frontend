@@ -1,64 +1,64 @@
-import 'package:dio/dio.dart';
-import 'package:occasio/core/api_client.dart';
+import 'dart:io';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfilService {
-  final Dio _dio = ApiClient.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  // 🎯 Récupérer mon profil privé (MonProfilResponse)
   Future<Map<String, dynamic>> getMonProfil() async {
-    try {
-      final response = await _dio.get('/profil');
-      return response.data;
-    } catch (e) {
-      throw Exception('Erreur lors du chargement du profil');
-    }
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Non connecté');
+    
+    // On mappe "first_name" en "firstName" pour que ton UI n'ait pas besoin de changer
+    final data = await _supabase.from('users').select().eq('id', userId).single();
+    return _mapToUi(data);
   }
 
-  // 🎯 Modifier les champs texte du profil (ProfilRequest)
   Future<Map<String, dynamic>> modifierProfil({
     required String nom,
     required String prenom,
     required String telephone,
   }) async {
-    try {
-      final response = await _dio.put(
-        '/profil',
-        data: {'firstName': prenom, 'lastName': nom, 'phoneNumber': telephone},
-        options: Options(contentType: 'application/json'),
-      );
-      return response.data;
-    } catch (e) {
-      throw Exception('Erreur lors de la modification du profil');
-    }
+    final userId = _supabase.auth.currentUser?.id;
+    final response = await _supabase.from('users').update({
+      'last_name': nom,
+      'first_name': prenom,
+      'phone_number': telephone,
+    }).eq('id', userId!).select().single();
+    
+    return _mapToUi(response);
   }
 
-  // 🎯 Mettre à jour la photo de profil (MultipartFile)
-  Future<Map<String, dynamic>> modifierPhotoProfil(
-    String cheminLocalPhoto,
-  ) async {
-    try {
-      final formData = FormData.fromMap({
-        'photo': await MultipartFile.fromFile(cheminLocalPhoto),
-      });
+  Future<void> modifierPhotoProfil(String cheminLocalPhoto) async {
+    final userId = _supabase.auth.currentUser?.id;
+    final fileExt = cheminLocalPhoto.split('.').last;
+    final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
-      final response = await _dio.patch(
-        '/profil/photo',
-        data: formData,
-        options: Options(contentType: 'multipart/form-data'),
-      );
-      return response.data;
-    } catch (e) {
-      throw Exception('Erreur lors du changement de la photo de profil');
-    }
+    // Upload vers le bucket "profils"
+    await _supabase.storage.from('profils').upload(fileName, File(cheminLocalPhoto));
+    final publicUrl = _supabase.storage.from('profils').getPublicUrl(fileName);
+
+    await _supabase.from('users').update({'photo_profil': publicUrl}).eq('id', userId!);
   }
 
-  // 🎯 Récupérer le profil public d'un autre utilisateur (PubliProfilResponse)
   Future<Map<String, dynamic>> getProfilPublic(String userId) async {
-    try {
-      final response = await _dio.get('/profil/$userId');
-      return response.data;
-    } catch (e) {
-      throw Exception('Erreur lors du chargement du profil public');
-    }
+    final user = await _supabase.from('users').select().eq('id', userId).single();
+    final annonces = await _supabase.from('annonces').select().eq('vendeur_id', userId).eq('statut', 'ACTIVE');
+    
+    final formattedUser = _mapToUi(user);
+    formattedUser['annonces'] = annonces;
+    return formattedUser;
+  }
+
+  // Utilitaire pour adapter les données PostgreSQL à ton écran existant
+  Map<String, dynamic> _mapToUi(Map<String, dynamic> dbData) {
+    return {
+      'id': dbData['id'],
+      'username': dbData['username'],
+      'email': dbData['email'],
+      'firstName': dbData['first_name'],
+      'lastName': dbData['last_name'],
+      'phoneNumber': dbData['phone_number'],
+      'photoProfil': dbData['photo_profil'],
+    };
   }
 }

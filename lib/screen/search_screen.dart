@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/service/annonce_service.dart';
 import 'package:occasio/widgets/listing_card.dart';
+import 'package:occasio/data/models/annonce_model.dart';
+import 'package:occasio/data/models/categorie_model.dart';
 
 class SearchScreen extends StatefulWidget {
   final bool autoFocus; // Permet d'ouvrir le clavier direct si on vient du Home
@@ -22,8 +24,9 @@ class _SearchScreenState extends State<SearchScreen> {
   final AnnonceService _annonceService = AnnonceService();
   final TextEditingController _searchController = TextEditingController();
   
-  List<dynamic> _resultats = [];
-  List<dynamic> _categories = [];
+  // Utilisation des modèles typés
+  List<AnnonceModel> _resultats = [];
+  List<CategorieModel> _categories = [];
   bool _isLoading = false;
 
   // Valeurs des filtres
@@ -217,7 +220,7 @@ class _SearchScreenState extends State<SearchScreen> {
 //  BOTTOM SHEET POUR LES FILTRES
 // ─────────────────────────────────────────────
 class _FilterBottomSheet extends StatefulWidget {
-  final List<dynamic> categories;
+  final List<CategorieModel> categories; // Typé avec CategorieModel
   final int? initialCategorieId;
   final String? initialEtat;
   final int? initialPrixMin;
@@ -300,14 +303,14 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             spacing: 8,
             runSpacing: 8,
             children: widget.categories.map((cat) {
-              final isSelected = _catId == cat['id'];
+              final isSelected = _catId == cat.id; // .id au lieu de ['id']
               return ChoiceChip(
-                label: Text(cat['nom']),
+                label: Text(cat.nom), // .nom au lieu de ['nom']
                 selected: isSelected,
                 selectedColor: AppColors.terracotta,
                 labelStyle: TextStyle(color: isSelected ? AppColors.blanc : AppColors.nuit),
                 onSelected: (selected) {
-                  setState(() => _catId = selected ? cat['id'] : null);
+                  setState(() => _catId = selected ? cat.id : null); // .id au lieu de ['id']
                 },
               );
             }).toList(),

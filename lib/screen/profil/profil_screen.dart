@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:occasio/screen/profil/edit_profil_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import ajouté
 import 'package:occasio/screen/app_colors.dart';
-import 'package:occasio/screen/edit_profil_screen.dart';
-import 'package:occasio/screen/mes_annonces_screen.dart';
+import 'package:occasio/screen/annonce/mes_annonces_screen.dart';
 import 'package:occasio/service/profil_service.dart';
 
 class ProfilScreen extends StatefulWidget {
@@ -49,7 +50,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
     setState(() => _isLoading = true);
     try {
       await _profilService.modifierPhotoProfil(image.path);
-      _chargerProfil(); // Recharge le profil pour actualiser la photo
+      _chargerProfil(); 
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -225,14 +226,16 @@ class _ProfilScreenState extends State<ProfilScreen> {
                           ),
                         ),
                         onPressed: () async {
-                          // 1. Supprime le token localement (Ajuste selon ta classe, ex: SharedPreferences)
-                          // await TokenStorage.deleteToken();
+                          // 1. Déconnexion native via Supabase (Détruit la session en cache)
+                          await Supabase.instance.client.auth.signOut();
 
-                          // 2. Redirige vers le login en détruisant tout l'historique de navigation
-                          Navigator.of(context).pushNamedAndRemoveUntil(
-                            '/connexion',
-                            (route) => false,
-                          );
+                          // 2. Redirection vers le login en détruisant tout l'historique
+                          if (mounted) {
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/connexion',
+                              (route) => false,
+                            );
+                          }
                         },
                         child: const Text(
                           'Me déconnecter',
@@ -263,10 +266,8 @@ class _ProfilScreenState extends State<ProfilScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
-        // On donne la forme et la couleur directement au ListTile
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        tileColor: AppColors.blanc, // Remplace le Container
-
+        tileColor: AppColors.blanc, 
         leading: Icon(icon, color: iconColor ?? AppColors.terracotta),
         title: Text(
           title,

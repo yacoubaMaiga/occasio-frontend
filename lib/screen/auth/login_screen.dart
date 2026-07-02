@@ -61,11 +61,17 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Content de vous revoir, ${user.firstName} !'),
+            content: Text('Bienvenue, ${user.firstName} !'),
             backgroundColor: AppColors.menthe,
           ),
         );
-        Navigator.of(context).pushReplacementNamed('/home');
+
+        // Routage dynamique basé sur le rôle
+        if (user.role == 'ROLE_ADMIN') {
+          Navigator.of(context).pushReplacementNamed('/admin');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } catch (e) {
       if (mounted) {

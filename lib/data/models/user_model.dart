@@ -6,6 +6,7 @@ class UserModel {
   final String lastName;
   final String? phoneNumber;
   final String? photoProfil;
+  final String role;
 
   UserModel({
     required this.id,
@@ -15,6 +16,7 @@ class UserModel {
     required this.lastName,
     this.phoneNumber,
     this.photoProfil,
+    required this.role,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,7 @@ class UserModel {
       phoneNumber: json['phoneNumber'],
       // Gère le cas où l'API renvoie null
       photoProfil: json['photoProfil'], 
+      role: json['role'] ?? 'ROLE_MEMBRE',
     );
   }
 }

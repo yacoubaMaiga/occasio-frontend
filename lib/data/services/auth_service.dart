@@ -22,7 +22,7 @@ class AuthService {
           .single();
 
       return UserModel.fromJson(userData);
-    } on AuthException catch (e) {
+    } on AuthException {
       throw Exception("Email ou mot de passe invalide.");
     } catch (e) {
       throw Exception("Erreur système: $e");

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/service/annonce_service.dart';
 import 'package:occasio/widgets/listing_card.dart';
+import 'package:occasio/data/models/annonce_model.dart'; // <-- Nouvel import
 
 class MesAnnoncesScreen extends StatefulWidget {
   const MesAnnoncesScreen({super.key});
@@ -14,7 +15,8 @@ class _MesAnnoncesScreenState extends State<MesAnnoncesScreen> with SingleTicker
   final AnnonceService _annonceService = AnnonceService();
   late TabController _tabController;
 
-  List<dynamic> _toutes = [];
+  // On utilise le modèle fortement typé au lieu de dynamic
+  List<AnnonceModel> _toutes = [];
   bool _isLoading = true;
 
   @override
@@ -26,7 +28,7 @@ class _MesAnnoncesScreenState extends State<MesAnnoncesScreen> with SingleTicker
 
   Future<void> _loadMesAnnonces() async {
     try {
-      // Ton backend renvoie un objet Page, on extrait la liste via .data['content'] dans ton annonce_service
+      // On récupère directement la liste d'AnnonceModel depuis Supabase
       final data = await _annonceService.getMesAnnonces(); 
       if (mounted) {
         setState(() {
@@ -39,9 +41,11 @@ class _MesAnnoncesScreenState extends State<MesAnnoncesScreen> with SingleTicker
     }
   }
 
-  List<dynamic> _filtrerParStatut(String? statut) {
+  // La liste filtrée renvoie également des AnnonceModel
+  List<AnnonceModel> _filtrerParStatut(String? statut) {
     if (statut == null) return _toutes;
-    return _toutes.where((a) => a['statut'] == statut).toList();
+    // On utilise la notation objet ".statut" au lieu de "['statut']"
+    return _toutes.where((a) => a.statut == statut).toList();
   }
 
   @override
@@ -74,7 +78,8 @@ class _MesAnnoncesScreenState extends State<MesAnnoncesScreen> with SingleTicker
     );
   }
 
-  Widget _buildGrid(List<dynamic> list) {
+  // Le Grid attend désormais une liste d'AnnonceModel
+  Widget _buildGrid(List<AnnonceModel> list) {
     if (list.isEmpty) {
       return const Center(child: Text('Aucune annonce dans cette catégorie.', style: TextStyle(color: Colors.grey, fontSize: 13)));
     }

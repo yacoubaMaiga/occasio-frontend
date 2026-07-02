@@ -1,45 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Ajout de l'import Supabase
+import 'package:occasio/screen/admin/admin_dashboard_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:occasio/screen/main_screen.dart';
 import 'package:occasio/screen/onboarding_screen.dart';
 import 'package:occasio/screen/auth/registration_screen.dart';
 import 'package:occasio/screen/auth/login_screen.dart';
-// Note: J'ai retiré l'import de verify_email_screen.dart car Supabase n'utilise pas de code OTP par défaut.
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // 1. Initialiser le moteur Flutter de base
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-
-  // 2. Demander au système de GARDER le Splash Screen natif affiché
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // 3. Initialisation de Supabase (Remplace par tes VRAIES clés)
+  // Initialisation de Supabase
   await Supabase.initialize(
-    url: 'https://ogauagzufinzpihsoxpf.supabase.co', // <-- À CHANGER
-    anonKey: 'sb_secret_U5wGvyJQabsrIHx18xZEnw_8ebD8PF0',       // <-- À CHANGER
+    url: 'https://ogauagzufinzpihsoxpf.supabase.co', // <-- Remets ton URL
+    anonKey: 'sb_secret_U5wGvyJQabsrIHx18xZEnw_8ebD8PF0',   // <-- Remets ta Clé
   );
 
-  // 4. Vérifier si une session Supabase est déjà active
-  final session = Supabase.instance.client.auth.currentSession;
-
-  // 5. Décider de la route de départ selon la présence d'une session
-  final String startRoute = session != null ? '/home' : '/onboarding';
-
-  // 6. Lancer l'application avec la route dynamique
-  runApp(MyApp(initialRoute: startRoute));
-
-  // 7. Une fois l'application chargée, on DÉTRUIT le Splash Screen natif
+  runApp(const MyApp());
+  
   FlutterNativeSplash.remove();
 }
 
 class MyApp extends StatelessWidget {
-  final String initialRoute;
-
-  const MyApp({super.key, required this.initialRoute});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -51,15 +38,71 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE07B39)),
         useMaterial3: true,
       ),
-      initialRoute: initialRoute,
+      
+      // On n'utilise plus "initialRoute" calculé en dur. 
+      // On donne directement le "AuthGate" comme page d'accueil (home).
+      home: const AuthGate(),
+      
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),
         '/home': (context) => const MainScreen(),
         '/inscription': (context) => const RegistrationScreen(),
         '/connexion': (context) => const LoginScreen(),
+        '/admin': (context) => const AdminDashboardScreen(),
       },
-      // J'ai supprimé onGenerateRoute pour /verification car nous avons désactivé 
-      // la confirmation d'email dans Supabase pour faciliter le développement.
+    );
+  }
+}
+
+// --- LE GARDIEN D'AUTHENTIFICATION ---
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Color(0xFFE07B39),
+            body: Center(child: CircularProgressIndicator(color: Colors.white)),
+          );
+        }
+
+        final session = snapshot.data?.session;
+
+        if (session != null) {
+          return FutureBuilder<Map<String, dynamic>?>(
+            // Utilisation de maybeSingle() au lieu de single() pour éviter l'erreur si user inexistant
+            future: Supabase.instance.client
+                .from('users')
+                .select('role')
+                .eq('id', session.user.id)
+                .maybeSingle(), 
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  backgroundColor: Color(0xFFE07B39),
+                  body: Center(child: CircularProgressIndicator(color: Colors.white)),
+                );
+              }
+
+              // Gestion sécurisée de la valeur : si null ou erreur, on redirige vers le Home (MEMBRE)
+              final data = userSnapshot.data;
+              final role = data != null ? data['role'] : 'ROLE_MEMBRE';
+
+              if (role == 'ROLE_ADMIN') {
+                return const AdminDashboardScreen();
+              } else {
+                return const MainScreen();
+              }
+            },
+          );
+        } else {
+          return const OnboardingScreen();
+        }
+      },
     );
   }
 }
