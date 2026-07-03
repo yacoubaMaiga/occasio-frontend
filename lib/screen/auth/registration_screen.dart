@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:occasio/screen/app_colors.dart';
-import 'package:occasio/data/services/auth_service.dart';
+import 'package:occasio/screen/auth/services/auth_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
