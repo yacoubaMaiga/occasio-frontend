@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
-import '../../../core/api_client.dart';
-import '../../../core/api_constants.dart';
-import '../../../core/token_storage.dart';
-import '../../../data/models/user_model.dart';
+import '../core/api_client.dart';
+import '../core/api_constants.dart';
+import '../core/token_storage.dart';
+import '../data/models/user_model.dart';
 
 class AuthService {
   // On récupère directement l'instance statique que tu as créée dans api_client.dart

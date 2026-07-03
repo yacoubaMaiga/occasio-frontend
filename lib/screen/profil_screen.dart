@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:occasio/screen/app_colors.dart';
 import 'package:occasio/screen/edit_profil_screen.dart';
-import 'package:occasio/screen/mes_annonces_screen.dart';
+import 'package:occasio/screen/annonce/mes_annonces_screen.dart';
 import 'package:occasio/service/profil_service.dart';
 
 class ProfilScreen extends StatefulWidget {

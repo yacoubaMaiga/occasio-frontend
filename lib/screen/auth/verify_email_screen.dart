@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:occasio/screen/app_colors.dart';
-import 'package:occasio/screen/auth/services/auth_service.dart';
+import 'package:occasio/service/auth_service.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   // L'email est requis pour permettre le renvoi du code en cas de perte
