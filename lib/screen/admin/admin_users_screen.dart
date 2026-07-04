@@ -105,7 +105,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 1,
-                  shadowColor: AppColors.nuit.withOpacity(0.05),
+                  shadowColor: AppColors.nuit.withValues(alpha: 0.05),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     leading: CircleAvatar(
@@ -144,7 +144,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(email, style: TextStyle(color: AppColors.nuit.withOpacity(0.6), fontSize: 13)),
+                        Text(email, style: TextStyle(color: AppColors.nuit.withValues(alpha: 0.6), fontSize: 13)),
                         const SizedBox(height: 4),
                         Text(
                           isEnabled ? 'Compte actif' : 'Compte suspendu',
@@ -162,9 +162,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       ? const SizedBox(width: 48) 
                       : Switch(
                           value: isEnabled,
-                          activeColor: AppColors.menthe,
+                          activeThumbColor: AppColors.menthe,
                           inactiveThumbColor: Colors.redAccent,
-                          inactiveTrackColor: Colors.redAccent.withOpacity(0.3),
+                          inactiveTrackColor: Colors.redAccent.withValues(alpha: 0.3),
                           onChanged: (val) => _toggleStatus(user['id'], isEnabled),
                         ),
                   ),

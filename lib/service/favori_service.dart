@@ -67,7 +67,7 @@ class FavoriService {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return response as List<Map<String, dynamic>>;
+      return response;
     } catch (e) {
       throw Exception("Erreur lors de la récupération des favoris : $e");
     }

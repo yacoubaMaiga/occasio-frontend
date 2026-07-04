@@ -110,7 +110,7 @@ class _AdminSignalementsScreenState extends State<AdminSignalementsScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 2,
-      shadowColor: AppColors.nuit.withOpacity(0.1),
+      shadowColor: AppColors.nuit.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -137,7 +137,7 @@ class _AdminSignalementsScreenState extends State<AdminSignalementsScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   'Message : "${sig['description']}"',
-                  style: TextStyle(color: AppColors.nuit.withOpacity(0.7), fontStyle: FontStyle.italic),
+                  style: TextStyle(color: AppColors.nuit.withValues(alpha: 0.7), fontStyle: FontStyle.italic),
                 ),
               ),
               
@@ -145,7 +145,7 @@ class _AdminSignalementsScreenState extends State<AdminSignalementsScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.sable.withOpacity(0.3),
+                color: AppColors.sable.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -192,7 +192,7 @@ class _AdminSignalementsScreenState extends State<AdminSignalementsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.check_circle_outline, size: 64, color: AppColors.menthe.withOpacity(0.5)),
+          Icon(Icons.check_circle_outline, size: 64, color: AppColors.menthe.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           const Text('Aucun signalement', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
