@@ -16,8 +16,8 @@ void main() async {
 
   // Initialisation de Supabase
   await Supabase.initialize(
-    url: 'https://ogauagzufinzpihsoxpf.supabase.co', // <-- Remets ton URL
-    anonKey: 'sb_secret_U5wGvyJQabsrIHx18xZEnw_8ebD8PF0',   // <-- Remets ta Clé
+    url: 'https://xwvlldozxpzfkbpinnvb.supabase.co',
+    anonKey: 'sb_secret_fKy4R7AP1eAxg_jR5m1o6g_mfRhqfMQ',
   );
 
   runApp(const MyApp());

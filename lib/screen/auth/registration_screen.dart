@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:occasio/screen/app_colors.dart';
-import 'package:occasio/data/services/auth_service.dart';
+import 'package:occasio/service/auth_service.dart';
 import 'package:occasio/utils/phone_formatter.dart'; // Import du formateur intelligent
 
 class RegistrationScreen extends StatefulWidget {
