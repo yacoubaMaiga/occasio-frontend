@@ -6,6 +6,7 @@ class UserModel {
   final String lastName;
   final String? phoneNumber;
   final String? photoProfil;
+  final List<String> roles;
 
   UserModel({
     required this.id,
@@ -15,9 +16,12 @@ class UserModel {
     required this.lastName,
     this.phoneNumber,
     this.photoProfil,
+    this.roles = const [],
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  bool get isAdmin => roles.contains('ROLE_ADMIN');
+
+  factory UserModel.fromJson(Map<String, dynamic> json, {List<String> roles = const []}) {
     return UserModel(
       id: json['id'].toString(),
       username: json['username'] ?? '',
@@ -25,8 +29,8 @@ class UserModel {
       firstName: json['firstName'] ?? '',
       lastName: json['lastName'] ?? '',
       phoneNumber: json['phoneNumber'],
-      // Gère le cas où l'API renvoie null
-      photoProfil: json['photoProfil'], 
+      photoProfil: json['photoProfil'],
+      roles: roles,
     );
   }
 }

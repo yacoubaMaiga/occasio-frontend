@@ -65,7 +65,12 @@ class _LoginScreenState extends State<LoginScreen> {
             backgroundColor: AppColors.menthe,
           ),
         );
-        Navigator.of(context).pushReplacementNamed('/home');
+
+        if (user.isAdmin) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/admin', (route) => false);
+        } else {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } catch (e) {
       if (mounted) {

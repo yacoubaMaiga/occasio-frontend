@@ -11,26 +11,23 @@ class AuthService {
   // --- CONNEXION ---
   Future<UserModel> login(String email, String password) async {
     try {
-      // 1. Appel de l'endpoint de connexion
       final authResponse = await _dio.post(
         ApiConstants.login,
         data: {'email': email, 'password': password},
       );
 
       final token = authResponse.data['token'];
+      final roles = List<String>.from(authResponse.data['roles'] ?? []);
 
-      // 2. Sauvegarde du Token via ton fichier token_storage.dart
       await TokenStorage.saveToken(token);
 
-      // 3. Récupération du profil complet
       final profilResponse = await _dio.get('/profil');
 
-      return UserModel.fromJson(profilResponse.data);
+      return UserModel.fromJson(profilResponse.data, roles: roles);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
-
   // --- INSCRIPTION ---
   Future<String> register({
     required String username,
@@ -61,26 +58,6 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
-  try {
-    final response = await _dio.post(
-      '/auth/google',
-      data: {'idToken': idToken},
-    );
- 
-    // ✅ Sauvegarder le JWT exactement comme après un login classique
-    final jwt = response.data['token'] ?? response.data['accessToken'];
-    if (jwt != null) {
-      await TokenStorage.saveToken(jwt);
-    }
- 
-    return response.data;
-  } catch (e) {
-    throw Exception('Erreur de connexion via Google');
-  }
-}
-
-
   // --- DÉCONNEXION ---
   Future<void> logout() async {
     // Utilisation de ta méthode statique
@@ -107,14 +84,17 @@ class AuthService {
   }
 
   // --- VÉRIFICATION DE L'EMAIL ---
-  Future<String> verifyEmail(String code) async {
+  Future<void> verifyEmail(String code) async {
     try {
       final response = await _dio.post(
-        ApiConstants
-            .verifyEmail, // Assure-toi d'avoir cette constante dans api_constants.dart
+        ApiConstants.verifyEmail,
         data: {'code': code},
       );
-      return response.data['message'] ?? 'Email vérifié';
+
+      final token = response.data['token'];
+      if (token != null) {
+        await TokenStorage.saveToken(token);
+      }
     } on DioException catch (e) {
       throw _handleError(e);
     }

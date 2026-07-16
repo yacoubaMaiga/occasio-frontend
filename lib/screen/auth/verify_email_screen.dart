@@ -77,14 +77,17 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     setState(() { _isLoading = true; });
 
     try {
-      final messageResponse = await _authService.verifyEmail(_codeController.text.trim());
+      await _authService.verifyEmail(_codeController.text.trim());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(messageResponse), backgroundColor: AppColors.menthe),
+          const SnackBar(
+            content: Text('Email vérifié avec succès !'),
+            backgroundColor: AppColors.menthe,
+          ),
         );
-        // Le compte est activé ! On redirige vers la connexion
-        Navigator.of(context).pushNamedAndRemoveUntil('/connexion', (route) => false);
+        // Compte activé + JWT déjà sauvegardé : direction /home
+        Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
       }
     } catch (e) {
       if (mounted) {
@@ -98,7 +101,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       }
     }
   }
-
   // Demande d'un nouveau code à ton endpoint /auth/renvoyer-code
   Future<void> _resendCode() async {
     setState(() { _isLoading = true; });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart'; // Ajout de l'import
 import 'package:occasio/core/token_storage.dart'; // Pour lire le JWT
+import 'package:occasio/screen/admin/admin_dashboard_screen.dart';
 import 'package:occasio/screen/auth/verify_email_screen.dart';
 import 'package:occasio/screen/main_screen.dart';
 import 'package:occasio/screen/onboarding_screen.dart';
@@ -57,6 +58,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const MainScreen(),
         '/inscription': (context) => const RegistrationScreen(),
         '/connexion': (context) => const LoginScreen(),
+        '/admin': (context) => const AdminDashboardScreen(),
       },
 
       onGenerateRoute: (settings) {
