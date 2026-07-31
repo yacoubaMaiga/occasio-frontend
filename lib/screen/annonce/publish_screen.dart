@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/theme/app_colors.dart';
 import 'package:occasio/service/annonce_service.dart';
 
 enum EtatArticle { NEUF, TRES_BON_ETAT, BON_ETAT, ETAT_CORRECT }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/theme/app_colors.dart';
 import 'package:occasio/service/profil_service.dart';
 
 class EditProfilScreen extends StatefulWidget {

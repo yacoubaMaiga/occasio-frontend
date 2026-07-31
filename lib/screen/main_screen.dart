@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:occasio/core/token_storage.dart';
 import 'package:occasio/screen/annonce/publish_screen.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/theme/app_colors.dart';
 import 'package:occasio/screen/conversation/conversations_screen.dart';
 import 'package:occasio/screen/home_screen.dart';
-import 'package:occasio/screen/profil_screen.dart';
+import 'package:occasio/screen/profil/profil_screen.dart';
 import 'package:occasio/screen/search_screen.dart'; 
 
 class MainScreen extends StatefulWidget {

@@ -1,23 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:occasio/screen/annonce/annonce_detail_screen.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/service/annonce_service.dart';
+import 'package:occasio/theme/app_colors.dart';
 
-class ListingCard extends StatelessWidget {
+class ListingCard extends StatefulWidget {
   final dynamic item;
 
   const ListingCard({super.key, required this.item});
 
   @override
+  State<ListingCard> createState() => _ListingCardState();
+}
+
+class _ListingCardState extends State<ListingCard> {
+  final AnnonceService _annonceService = AnnonceService();
+  late bool _estFavori;
+
+  @override
+  void initState() {
+    super.initState();
+    _estFavori = widget.item['estEnFavori'] ?? false;
+  }
+
+  @override
+  void didUpdateWidget(covariant ListingCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Resynchronise l'état favori si les données de l'item ont changé
+    // (par exemple après le rafraîchissement automatique de la Home).
+    final nouvelEtat = widget.item['estEnFavori'] ?? false;
+    if (nouvelEtat != _estFavori) {
+      setState(() => _estFavori = nouvelEtat);
+    }
+  }
+
+  Future<void> _toggleFavori() async {
+    final previousState = _estFavori;
+    setState(() => _estFavori = !_estFavori);
+
+    try {
+      final id = widget.item['id'].toString();
+      if (_estFavori) {
+        await _annonceService.ajouterFavoris(id);
+      } else {
+        await _annonceService.retirerFavoris(id);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _estFavori = previousState);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Impossible de mettre à jour les favoris.")),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final titre = item['titre'] ?? 'Sans titre';
     final description = item['description'] ?? '';
     final prix = item['prix']?.toString() ?? '0';
     final imagePrincipale = item['imagePrincipale'];
     final estVendu = item['statut'] == 'VENDUE';
-    final estFavori = item['estEnFavori'] ?? false;
 
     return GestureDetector(
-      // ── Toute la card est cliquable → page détail ──
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -39,7 +85,6 @@ class ListingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image et Badges ──
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
@@ -89,16 +134,11 @@ class ListingCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  // ── Favori : GestureDetector séparé pour ne pas
-                  //    déclencher la navigation au tap sur le cœur ──
                   Positioned(
                     top: 6,
                     right: 6,
                     child: GestureDetector(
-                      onTap: () {
-                        // TODO: AnnonceService.ajouterFavoris / retirerFavoris
-                        // Stopper la propagation vers le GestureDetector parent
-                      },
+                      onTap: _toggleFavori,
                       behavior: HitTestBehavior.opaque,
                       child: Container(
                         width: 32,
@@ -114,11 +154,11 @@ class ListingCard extends StatelessWidget {
                           ],
                         ),
                         child: Icon(
-                          estFavori
+                          _estFavori
                               ? Icons.favorite
                               : Icons.favorite_border,
                           size: 16,
-                          color: estFavori
+                          color: _estFavori
                               ? AppColors.terracotta
                               : Colors.grey.shade400,
                         ),
@@ -128,8 +168,6 @@ class ListingCard extends StatelessWidget {
                 ],
               ),
             ),
-
-            // ── Textes ──
             Padding(
               padding: const EdgeInsets.all(10),
               child: Column(

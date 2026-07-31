@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/theme/app_colors.dart';
 import 'package:occasio/service/auth_service.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
@@ -146,87 +146,89 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Form(
             key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 40),
-                const Text(
-                  'Code de validation',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.nuit),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Saisissez le code à 6 chiffres envoyé à l\'adresse :\n${widget.email}',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey, height: 1.4),
-                ),
-                const SizedBox(height: 48),
-
-                // Champ de saisie stylisé pour l'OTP
-                TextFormField(
-                  controller: _codeController,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 12),
-                  // Contraintes de saisie : uniquement des chiffres et 6 caractères max
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(6),
-                  ],
-                  decoration: InputDecoration(
-                    hintText: '000000',
-                    hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.3), letterSpacing: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.callToAction, width: 2),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
+                  const Text(
+                    'Code de validation',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.nuit),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Saisissez le code à 6 chiffres envoyé à l\'adresse :\n${widget.email}',
+                    style: const TextStyle(fontSize: 16, color: Colors.grey, height: 1.4),
+                  ),
+                  const SizedBox(height: 48),
+              
+                  // Champ de saisie stylisé pour l'OTP
+                  TextFormField(
+                    controller: _codeController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 12),
+                    // Contraintes de saisie : uniquement des chiffres et 6 caractères max
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    decoration: InputDecoration(
+                      hintText: '000000',
+                      hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.3), letterSpacing: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.callToAction, width: 2),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Veuillez entrer le code';
+                      if (value.length < 6) return 'Le code doit contenir 6 chiffres';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 32),
+              
+                  // Bouton de validation dynamique
+                  SizedBox(
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: (_isLoading || !_isButtonEnabled) ? null : _submitVerification,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.callToAction,
+                        foregroundColor: AppColors.blanc,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: AppColors.blanc)
+                          : const Text('Vérifier mon compte', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Veuillez entrer le code';
-                    if (value.length < 6) return 'Le code doit contenir 6 chiffres';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 32),
-
-                // Bouton de validation dynamique
-                SizedBox(
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: (_isLoading || !_isButtonEnabled) ? null : _submitVerification,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.callToAction,
-                      foregroundColor: AppColors.blanc,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: AppColors.blanc)
-                        : const Text('Vérifier mon compte', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Gestion du renvoi de code
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('Pas reçu de code ? ', style: TextStyle(color: AppColors.nuit)),
-                    _canResend
-                        ? TextButton(
-                            onPressed: _isLoading ? null : _resendCode,
-                            child: const Text(
-                              'Renvoyer',
-                              style: TextStyle(color: AppColors.callToAction, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 32),
+              
+                  // Gestion du renvoi de code
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Pas reçu de code ? ', style: TextStyle(color: AppColors.nuit)),
+                      _canResend
+                          ? TextButton(
+                              onPressed: _isLoading ? null : _resendCode,
+                              child: const Text(
+                                'Renvoyer',
+                                style: TextStyle(color: AppColors.callToAction, fontWeight: FontWeight.bold),
+                              ),
+                            )
+                          : Text(
+                              'Renvoyer dans ${_startSeconds}s',
+                              style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                             ),
-                          )
-                        : Text(
-                            'Renvoyer dans ${_startSeconds}s',
-                            style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
-                          ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

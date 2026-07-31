@@ -5,7 +5,7 @@ import 'package:occasio/screen/admin/admin_annonces_screen.dart';
 import 'package:occasio/screen/admin/admin_categories_screen.dart';
 import 'package:occasio/screen/admin/admin_signalements_screen.dart';
 import 'package:occasio/service/admin_service.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/theme/app_colors.dart';
 
 // 1. AJOUT DE LA CLASSE PRINCIPALE (StatefulWidget) MANQUANTE
 class AdminDashboardScreen extends StatefulWidget {
@@ -43,13 +43,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   void _deconnexion(BuildContext context) async {
-  await TokenStorage.deleteToken();
-  if (context.mounted) {
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil('/connexion', (route) => false);
+    await TokenStorage.clearAll();
+    if (context.mounted) {
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil('/connexion', (route) => false);
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {

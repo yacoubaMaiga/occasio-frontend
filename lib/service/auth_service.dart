@@ -20,6 +20,7 @@ class AuthService {
       final roles = List<String>.from(authResponse.data['roles'] ?? []);
 
       await TokenStorage.saveToken(token);
+      await TokenStorage.saveRoles(roles);
 
       final profilResponse = await _dio.get('/profil');
 
@@ -60,8 +61,7 @@ class AuthService {
 
   // --- DÉCONNEXION ---
   Future<void> logout() async {
-    // Utilisation de ta méthode statique
-    await TokenStorage.deleteToken();
+    await TokenStorage.clearAll();
   }
 
   // --- GESTION DES ERREURS ---
@@ -94,6 +94,8 @@ class AuthService {
       final token = response.data['token'];
       if (token != null) {
         await TokenStorage.saveToken(token);
+        final roles = List<String>.from(response.data['roles'] ?? []);
+        await TokenStorage.saveRoles(roles);
       }
     } on DioException catch (e) {
       throw _handleError(e);

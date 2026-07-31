@@ -129,4 +129,20 @@ class AnnonceService {
       return [];
     }
   }
+
+  Future<void> ajouterFavoris(String annonceId) async {
+    try {
+      await _dio.post('/annonces/$annonceId/favoris');
+    } catch (e) {
+      throw Exception("Erreur lors de l'ajout aux favoris");
+    }
+  }
+
+  Future<void> retirerFavoris(String annonceId) async {
+    try {
+      await _dio.delete('/annonces/$annonceId/favoris');
+    } catch (e) {
+      throw Exception("Erreur lors du retrait des favoris");
+    }
+  }
 }

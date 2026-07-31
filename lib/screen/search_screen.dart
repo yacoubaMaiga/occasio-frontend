@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/theme/app_colors.dart';
 import 'package:occasio/service/annonce_service.dart';
 import 'package:occasio/widgets/listing_card.dart';
 
 class SearchScreen extends StatefulWidget {
   final bool autoFocus; // Permet d'ouvrir le clavier direct si on vient du Home
   final bool showBackButton; // Gère le bouton retour
+  final int?
+  initialCategorieId; // Pré-sélectionne une catégorie (venant du Home)
+  final String? initialCategorieName; // Affichée dans un badge de filtre actif
 
   const SearchScreen({
     super.key,
     this.autoFocus = false,
     this.showBackButton = false,
+    this.initialCategorieId,
+    this.initialCategorieName,
   });
 
   @override
@@ -21,7 +26,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final AnnonceService _annonceService = AnnonceService();
   final TextEditingController _searchController = TextEditingController();
-  
+
   List<dynamic> _resultats = [];
   List<dynamic> _categories = [];
   bool _isLoading = false;
@@ -35,8 +40,9 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedCategorieId = widget.initialCategorieId;
     _loadCategories();
-    // Lance une recherche vide au démarrage pour afficher les annonces récentes
+    // Lance la recherche au démarrage (pré-filtrée si une catégorie est fournie)
     _lancerRecherche();
   }
 
@@ -129,13 +135,24 @@ class _SearchScreenState extends State<SearchScreen> {
             onSubmitted: (_) => _lancerRecherche(),
             decoration: InputDecoration(
               hintText: 'Rechercher...',
-              hintStyle: TextStyle(color: AppColors.nuit.withValues(alpha: 0.4), fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: AppColors.nuit, size: 20),
+              hintStyle: TextStyle(
+                color: AppColors.nuit.withValues(alpha: 0.4),
+                fontSize: 14,
+              ),
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppColors.nuit,
+                size: 20,
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.close, size: 16, color: AppColors.nuit),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: AppColors.nuit,
+                      ),
                       onPressed: () {
                         _searchController.clear();
                         _lancerRecherche();
@@ -151,7 +168,10 @@ class _SearchScreenState extends State<SearchScreen> {
             icon: Stack(
               children: [
                 const Icon(Icons.tune_rounded, color: AppColors.terracotta),
-                if (_selectedCategorieId != null || _selectedEtat != null || _prixMin != null || _prixMax != null)
+                if (_selectedCategorieId != null ||
+                    _selectedEtat != null ||
+                    _prixMin != null ||
+                    _prixMax != null)
                   Positioned(
                     right: 0,
                     top: 0,
@@ -163,30 +183,66 @@ class _SearchScreenState extends State<SearchScreen> {
                         shape: BoxShape.circle,
                       ),
                     ),
-                  )
+                  ),
               ],
             ),
             onPressed: _ouvrirFiltres,
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.terracotta))
-          : _resultats.isEmpty
-              ? _buildEmptyState()
-              : GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.65,
+      body: Column(
+        children: [
+          if (widget.initialCategorieName != null &&
+              _selectedCategorieId != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Chip(
+                  label: Text(widget.initialCategorieName!),
+                  backgroundColor: AppColors.terracotta.withValues(alpha: 0.1),
+                  labelStyle: const TextStyle(
+                    color: AppColors.terracotta,
+                    fontWeight: FontWeight.w600,
                   ),
-                  itemCount: _resultats.length,
-                  itemBuilder: (context, index) {
-                    return ListingCard(item: _resultats[index]);
+                  deleteIcon: const Icon(
+                    Icons.close,
+                    size: 16,
+                    color: AppColors.terracotta,
+                  ),
+                  onDeleted: () {
+                    setState(() => _selectedCategorieId = null);
+                    _lancerRecherche();
                   },
                 ),
+              ),
+            ),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.terracotta,
+                    ),
+                  )
+                : _resultats.isEmpty
+                ? _buildEmptyState()
+                : GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.65,
+                        ),
+                    itemCount: _resultats.length,
+                    itemBuilder: (context, index) {
+                      return ListingCard(item: _resultats[index]);
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -195,17 +251,28 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search_off_rounded, size: 64, color: AppColors.nuit.withValues(alpha: 0.2)),
+          Icon(
+            Icons.search_off_rounded,
+            size: 64,
+            color: AppColors.nuit.withValues(alpha: 0.2),
+          ),
           const SizedBox(height: 16),
           const Text(
             'Aucun résultat',
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Essayez de modifier vos filtres\nou de chercher autre chose.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.nuit.withValues(alpha: 0.5), fontSize: 14),
+            style: TextStyle(
+              color: AppColors.nuit.withValues(alpha: 0.5),
+              fontSize: 14,
+            ),
           ),
         ],
       ),
@@ -255,8 +322,12 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     super.initState();
     _catId = widget.initialCategorieId;
     _etat = widget.initialEtat;
-    if (widget.initialPrixMin != null) _minController.text = widget.initialPrixMin.toString();
-    if (widget.initialPrixMax != null) _maxController.text = widget.initialPrixMax.toString();
+    if (widget.initialPrixMin != null) {
+      _minController.text = widget.initialPrixMin.toString();
+    }
+    if (widget.initialPrixMax != null) {
+      _maxController.text = widget.initialPrixMax.toString();
+    }
   }
 
   void _reinitialiser() {
@@ -284,17 +355,33 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Filtres', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.nuit)),
+              const Text(
+                'Filtres',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.nuit,
+                ),
+              ),
               TextButton(
                 onPressed: _reinitialiser,
-                child: const Text('Réinitialiser', style: TextStyle(color: AppColors.terracotta)),
-              )
+                child: const Text(
+                  'Réinitialiser',
+                  style: TextStyle(color: AppColors.terracotta),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Catégories
-          const Text('Catégorie', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const Text(
+            'Catégorie',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -305,7 +392,9 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 label: Text(cat['nom']),
                 selected: isSelected,
                 selectedColor: AppColors.terracotta,
-                labelStyle: TextStyle(color: isSelected ? AppColors.blanc : AppColors.nuit),
+                labelStyle: TextStyle(
+                  color: isSelected ? AppColors.blanc : AppColors.nuit,
+                ),
                 onSelected: (selected) {
                   setState(() => _catId = selected ? cat['id'] : null);
                 },
@@ -315,7 +404,13 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
           const SizedBox(height: 20),
 
           // État
-          const Text('État de l\'article', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const Text(
+            'État de l\'article',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -326,7 +421,9 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 label: Text(entry.value),
                 selected: isSelected,
                 selectedColor: AppColors.menthe,
-                labelStyle: TextStyle(color: isSelected ? AppColors.blanc : AppColors.nuit),
+                labelStyle: TextStyle(
+                  color: isSelected ? AppColors.blanc : AppColors.nuit,
+                ),
                 onSelected: (selected) {
                   setState(() => _etat = selected ? entry.key : null);
                 },
@@ -336,7 +433,13 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
           const SizedBox(height: 20),
 
           // Prix
-          const Text('Prix (FCFA)', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const Text(
+            'Prix (FCFA)',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -348,7 +451,10 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                     hintText: 'Min',
                     filled: true,
                     fillColor: AppColors.sable.withValues(alpha: 0.3),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
               ),
@@ -363,7 +469,10 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                     hintText: 'Max',
                     filled: true,
                     fillColor: AppColors.sable.withValues(alpha: 0.3),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
               ),
@@ -378,7 +487,9 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.terracotta,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () {
                 final min = int.tryParse(_minController.text);
@@ -386,7 +497,14 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 widget.onApply(_catId, _etat, min, max);
                 Navigator.pop(context);
               },
-              child: const Text('Appliquer les filtres', style: TextStyle(color: AppColors.blanc, fontSize: 16, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Appliquer les filtres',
+                style: TextStyle(
+                  color: AppColors.blanc,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 20),

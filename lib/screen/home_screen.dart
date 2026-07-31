@@ -2,12 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:occasio/screen/annonce/publish_screen.dart';
-import 'package:occasio/screen/app_colors.dart';
+import 'package:occasio/theme/app_colors.dart';
 import 'package:occasio/screen/conversation/conversations_screen.dart';
 import 'package:occasio/screen/search_screen.dart';
 import 'package:occasio/service/annonce_service.dart';
 import 'package:occasio/service/messagerie_service.dart';
 import 'package:occasio/widgets/listing_card.dart';
+import 'package:occasio/utils/icon_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _unreadMessagesCount = 0;
   bool _isLoading = true;
 
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
@@ -40,9 +43,21 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     });
     _loadData();
+
+    // Rafraîchit les données toutes les 3 secondes, en arrière-plan,
+    // sans réafficher le loader plein écran (pour ne pas gêner le scroll).
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _loadData(silent: true);
+    });
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool silent = false}) async {
+    // En mode silencieux (rafraîchissement périodique), on ne montre pas
+    // le spinner plein écran ni les erreurs, pour ne pas gêner l'utilisateur.
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
+
     try {
       final responses = await Future.wait([
         _annonceService.getCategories(),
@@ -70,15 +85,18 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de charger les données. Vérifiez votre connexion.')),
-        );
+        if (!silent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Impossible de charger les données. Vérifiez votre connexion.')),
+          );
+        }
       }
     }
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -88,12 +106,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: _HomeAppBar(unreadCount: _unreadMessagesCount),
-      
+
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.terracotta,
-              ),
+              child: CircularProgressIndicator(color: AppColors.terracotta),
             )
           : Stack(
               children: [
@@ -101,13 +117,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   controller: _scrollController,
                   slivers: [
                     const SliverToBoxAdapter(
-                      child: SizedBox(height: _heroHeight + _searchBarTotalHeight),
+                      child: SizedBox(
+                        height: _heroHeight + _searchBarTotalHeight,
+                      ),
                     ),
 
                     const SliverToBoxAdapter(
                       child: _SectionTitle(title: 'Parcourir les catégories'),
                     ),
-                    
+
                     SliverToBoxAdapter(
                       child: _CategoriesRow(categoriesData: _categories),
                     ),
@@ -115,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SliverToBoxAdapter(
                       child: _SectionTitle(title: 'Annonces récentes'),
                     ),
-                    
+
                     if (_annonces.isEmpty)
                       const SliverToBoxAdapter(
                         child: Padding(
@@ -132,14 +150,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       SliverPadding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         sliver: SliverGrid(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 0.65,
-                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 0.65,
+                              ),
                           delegate: SliverChildBuilderDelegate(
-                            (context, index) => ListingCard(item: _annonces[index]),
+                            (context, index) =>
+                                ListingCard(item: _annonces[index]),
                             childCount: _annonces.length,
                           ),
                         ),
@@ -173,7 +193,8 @@ class _HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      automaticallyImplyLeading: false, // Désactive la flèche de retour automatique
+      automaticallyImplyLeading:
+          false, // Désactive la flèche de retour automatique
       backgroundColor: AppColors.sable,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -289,8 +310,10 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    final visibleHeroHeight =
-        (widget.heroHeight - widget.scrollOffset).clamp(0.0, widget.heroHeight);
+    final visibleHeroHeight = (widget.heroHeight - widget.scrollOffset).clamp(
+      0.0,
+      widget.heroHeight,
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -304,7 +327,7 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
               minHeight: widget.heroHeight,
               maxHeight: widget.heroHeight,
               child: SizedBox(
-                height: widget.heroHeight, 
+                height: widget.heroHeight,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -315,16 +338,17 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                         _startOrRestartTimer(index);
                       },
                       children: [
-                        _buildSlide(                          
+                        _buildSlide(
                           imagePath: 'assets/hero_caroussel/img1.jpg',
                           title: 'Gagnez de l\'argent\nfacilement',
                           subtitle:
                               'Vendez les objets que vous n\'utilisez plus en 3 clics.',
-                          showCta: true, 
+                          showCta: true,
                         ),
                         _buildSlide(
                           imagePath: 'assets/hero_caroussel/img2.jpeg',
-                          title: 'Choisissez les produits\nqui vous conviennent',
+                          title:
+                              'Choisissez les produits\nqui vous conviennent',
                           subtitle:
                               'Des millions d\'annonces d\'occasion près de chez vous.',
                           showCta: false,
@@ -336,9 +360,9 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                       left: 0,
                       right: 0,
                       child: Opacity(
-                        opacity: (1 -
-                                widget.scrollOffset / widget.heroHeight * 2)
-                            .clamp(0.0, 1.0),
+                        opacity:
+                            (1 - widget.scrollOffset / widget.heroHeight * 2)
+                                .clamp(0.0, 1.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -370,8 +394,10 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
     required String subtitle,
     required bool showCta,
   }) {
-    final textOpacity =
-        (1 - widget.scrollOffset / widget.heroHeight * 2).clamp(0.0, 1.0);
+    final textOpacity = (1 - widget.scrollOffset / widget.heroHeight * 2).clamp(
+      0.0,
+      1.0,
+    );
 
     return Stack(
       fit: StackFit.expand,
@@ -446,14 +472,18 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                 if (showCta) ...[
                   const SizedBox(height: 14),
                   GestureDetector(
-                    onTap: () {                      
+                    onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const PublishScreen()),
-                      );                      
+                        MaterialPageRoute(
+                          builder: (_) => const PublishScreen(),
+                        ),
+                      );
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.terracotta,
                         borderRadius: BorderRadius.circular(22),
@@ -461,8 +491,11 @@ class _HeroWithSearchBarState extends State<_HeroWithSearchBar> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.add_circle_outline,
-                              color: AppColors.blanc, size: 16),
+                          Icon(
+                            Icons.add_circle_outline,
+                            color: AppColors.blanc,
+                            size: 16,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Publier une annonce',
@@ -512,10 +545,8 @@ class _SearchBar extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => const SearchScreen(
-              autoFocus: true, 
-              showBackButton: true,
-            ),
+            builder: (_) =>
+                const SearchScreen(autoFocus: true, showBackButton: true),
           ),
         );
       },
@@ -611,7 +642,18 @@ class _CategoriesRow extends StatelessWidget {
           final cat = categoriesData[index];
           return _CategoryCard(
             label: cat['nom'] ?? 'Inconnu',
-            icon: Icons.category_outlined, 
+            icon: IconHelper.getIcon(cat['icone']),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SearchScreen(
+                    initialCategorieId: cat['id'],
+                    initialCategorieName: cat['nom'],
+                    showBackButton: true,
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -622,33 +664,41 @@ class _CategoriesRow extends StatelessWidget {
 class _CategoryCard extends StatelessWidget {
   final String label;
   final IconData icon;
+  final VoidCallback onTap;
 
-  const _CategoryCard({required this.label, required this.icon});
+  const _CategoryCard({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppColors.sable,
-            borderRadius: BorderRadius.circular(16),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.sable,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: AppColors.terracotta, size: 26),
           ),
-          child: Icon(icon, color: AppColors.terracotta, size: 26),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

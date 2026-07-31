@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:occasio/screen/app_colors.dart';
-import 'package:occasio/screen/edit_profil_screen.dart';
+import 'package:occasio/theme/app_colors.dart';
+import 'package:occasio/screen/profil/edit_profil_screen.dart';
 import 'package:occasio/screen/annonce/mes_annonces_screen.dart';
 import 'package:occasio/service/profil_service.dart';
+import 'package:occasio/service/auth_service.dart';
 
 class ProfilScreen extends StatefulWidget {
   const ProfilScreen({super.key});
@@ -225,14 +226,20 @@ class _ProfilScreenState extends State<ProfilScreen> {
                           ),
                         ),
                         onPressed: () async {
-                          // 1. Supprime le token localement (Ajuste selon ta classe, ex: SharedPreferences)
-                          // await TokenStorage.deleteToken();
+                          Navigator.pop(
+                            ctx,
+                          ); // Ferme la boîte de dialogue de confirmation
 
-                          // 2. Redirige vers le login en détruisant tout l'historique de navigation
-                          Navigator.of(context).pushNamedAndRemoveUntil(
-                            '/connexion',
-                            (route) => false,
-                          );
+                          // Supprime réellement le token stocké
+                          await AuthService().logout();
+
+                          if (context.mounted) {
+                            // Redirige vers le login en détruisant tout l'historique de navigation
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/connexion',
+                              (route) => false,
+                            );
+                          }
                         },
                         child: const Text(
                           'Me déconnecter',

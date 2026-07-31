@@ -30,7 +30,7 @@ bool _isPublicPath(RequestOptions options) {
     // Annonces publiques
     'GET /annonces/recherche',
     'GET /annonces/categorie',
-    'GET /annonces',          // liste
+    'GET /annonces', // liste
     // Catégories
     'GET /categories',
     // Uploads
@@ -57,75 +57,84 @@ bool _isPublicPath(RequestOptions options) {
 }
 
 class ApiClient {
-  static final Dio _dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ),
-  )..interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          // Ajout du token uniquement si disponible (routes publiques
-          // fonctionnent sans token, routes protégées en ont besoin)
-          if (!options.path.contains('/auth/')) {
-            final token = await TokenStorage.getToken();
-            if (token != null) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          }
-          return handler.next(options);
-        },
-
-        onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401) {
-            // ── CORRECTIF : ne déconnecter que sur les routes protégées ──
-            // Sur une route publique, le 401 signifie juste que le token
-            // optionnel était invalide — pas que la session est expirée.
-            final path = e.requestOptions.path;
-
-            if (_isPublicPath(e.requestOptions)) {
-              // Route publique : on supprime juste le token invalide
-              // mais on ne redirige PAS vers la connexion.
-              await TokenStorage.deleteToken();
-
-              // On relance la requête SANS token cette fois
-              final retryOptions = e.requestOptions;
-              retryOptions.headers.remove('Authorization');
-              try {
-                final response = await _dio.fetch(retryOptions);
-                return handler.resolve(response);
-              } catch (_) {
-                // Si ça échoue encore, on laisse passer l'erreur normalement
-                return handler.next(e);
+  static final Dio _dio =
+      Dio(
+          BaseOptions(
+            baseUrl: ApiConstants.baseUrl,
+            connectTimeout: const Duration(seconds: 15),
+            receiveTimeout: const Duration(seconds: 15),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          ),
+        )
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) async {
+              // Ajout du token uniquement si disponible (routes publiques
+              // fonctionnent sans token, routes protégées en ont besoin)
+              if (!options.path.contains('/auth/')) {
+                final token = await TokenStorage.getToken();
+                if (token != null) {
+                  options.headers['Authorization'] = 'Bearer $token';
+                }
               }
-            } else {
-              // Route protégée : là on déconnecte vraiment
-              await TokenStorage.deleteToken();
+              return handler.next(options);
+            },
 
-              final ctx = navigatorKey.currentContext;
-              if (ctx != null && ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Votre session a expiré. Veuillez vous reconnecter.'),
-                    backgroundColor: Colors.redAccent,
-                  ),
-                );
-                navigatorKey.currentState
-                    ?.pushNamedAndRemoveUntil('/connexion', (route) => false);
+            onError: (DioException e, handler) async {
+              if (e.response?.statusCode == 401) {
+                final alreadyRetried =
+                    e.requestOptions.extra['retried'] == true;
+
+                if (_isPublicPath(e.requestOptions) && !alreadyRetried) {
+                  // Route publique : on retente juste sans le header,
+                  // SANS TOUCHER au token stocké (il reste valide pour les autres routes).
+                  final retryOptions = e.requestOptions;
+                  retryOptions.headers.remove('Authorization');
+                  retryOptions.extra['retried'] = true;
+
+                  try {
+                    final response = await _dio.fetch(retryOptions);
+                    return handler.resolve(response);
+                  } catch (_) {
+                    return handler.next(e);
+                  }
+                } else if (!_isPublicPath(e.requestOptions)) {
+                  // Route protégée : ici seulement, vérifie s'il y avait vraiment un token
+                  final hadToken = await TokenStorage.getToken() != null;
+
+                  if (hadToken) {
+                    // Vrai token qui a été refusé = vraie expiration de session.
+                    await TokenStorage.deleteToken();
+
+                    final ctx = navigatorKey.currentContext;
+                    if (ctx != null && ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Votre session a expiré. Veuillez vous reconnecter.',
+                          ),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                      navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                        '/connexion',
+                        (route) => false,
+                      );
+                    }
+                  }
+                  // Si pas de token du tout (visiteur anonyme sur route protégée),
+                  // on ne fait rien de spécial : l'erreur remonte normalement,
+                  // et c'est à l'écran/l'auth guard de gérer l'accès.
+                }
               }
-            }
-          }
 
-          return handler.next(e);
-        },
-      ),
-    );
+              return handler.next(e);
+            },
+          ),
+        );
 
   static Dio get instance => _dio;
 }
