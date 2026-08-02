@@ -4,7 +4,7 @@ class ApiConstants {
 
   // static const String baseUrl = 'http://192.168.1.105:8080/api';
 
-  static const String baseUrl = 'http://192.168.100.191:8080/api';
+  static const String baseUrl = 'https://occasio-backend-o3qw.onrender.com';
   
   // Endpoints d'authentification
   static const String login = '/auth/connexion';
